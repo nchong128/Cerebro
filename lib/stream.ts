@@ -1,12 +1,11 @@
-import { Editor, Notice, Platform } from "obsidian";
-import { SSE } from "sse";
-import { unfinishedCodeBlock } from "lib/helpers";
-import pino from "pino";
+import { Editor, Notice, Platform } from 'obsidian';
+import { SSE } from 'sse';
+import { unfinishedCodeBlock } from 'lib/helpers';
+import pino from 'pino';
 
 const logger = pino({
-	level: 'info'
+	level: 'info',
 });
-
 
 export interface OpenAIStreamPayload {
 	model: string;
@@ -27,17 +26,15 @@ export class StreamManager {
 	sse: any | null = null;
 	manualClose = false;
 
-	constructor() {}
-
 	stopStreaming = () => {
 		if (Platform.isMobile) {
-			new Notice("[CerebroGPT] Mobile not supported.");
+			new Notice('[CerebroGPT] Mobile not supported.');
 			return;
 		}
 		if (this.sse) {
 			this.manualClose = true;
 			this.sse.close();
-			logger.info("[CerebroGPT] SSE manually closed.");
+			logger.info('[CerebroGPT] SSE manually closed.');
 			this.sse = null;
 		}
 	};
@@ -48,29 +45,29 @@ export class StreamManager {
 		url: string,
 		options: OpenAIStreamPayload,
 		setAtCursor: boolean,
-		headingPrefix: string
+		headingPrefix: string,
 	) => {
 		return new Promise((resolve, reject) => {
 			try {
-				logger.info("[CerebroGPT] streamSSE", options);
+				logger.info('[CerebroGPT] streamSSE', options);
 
 				const source = new SSE(url, {
 					headers: {
-						"Content-Type": "application/json",
+						'Content-Type': 'application/json',
 						Authorization: `Bearer ${apiKey}`,
 					},
-					method: "POST",
+					method: 'POST',
 					payload: JSON.stringify(options),
 				});
 
 				this.sse = source;
 
-				let txt = "";
+				let txt = '';
 				let initialCursorPosCh = editor.getCursor().ch;
 				let initialCursorPosLine = editor.getCursor().line;
 
-				source.addEventListener("open", (e: any) => {
-					logger.info("[CerebroGPT] SSE Opened");
+				source.addEventListener('open', (e: any) => {
+					logger.info('[CerebroGPT] SSE Opened');
 
 					const newLine = `\n\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::assistant\n\n`;
 					editor.replaceRange(newLine, editor.getCursor());
@@ -87,13 +84,13 @@ export class StreamManager {
 					initialCursorPosLine = newCursor.line;
 				});
 
-				source.addEventListener("message", (e: any) => {
-					if (e.data != "[DONE]") {
+				source.addEventListener('message', (e: any) => {
+					if (e.data != '[DONE]') {
 						let payload;
 						try {
 							payload = JSON.parse(e.data);
 						} catch (err) {
-							logger.info("Error parsing JSON", err);
+							logger.info('Error parsing JSON', err);
 							logger.info(e.data);
 							// e.data has corrupted json b/c of some reason, it looks like this:
 							//"{\"id\":\"chatcmpl-8npFjqqyFoGXNa5oGgl3WuzPQB5ka\",\"object\":\"chat.completion.chunk\",\"created\":1706885779,\"model\":\"gpt-4-0613\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"logprobs\":null,\"finish_reason\":null}]}
@@ -101,10 +98,10 @@ export class StreamManager {
 
 							// looks like there are }{ json objects that looks the same as the original json object
 							// so we need to split the string by }{ and parse each json object separately
-							const jsonObjects = e.data.split("}{");
+							const jsonObjects = e.data.split('}{');
 							payload = [
-								JSON.parse(jsonObjects[0] + "}"),
-								JSON.parse("{" + jsonObjects[1]),
+								JSON.parse(jsonObjects[0] + '}'),
+								JSON.parse('{' + jsonObjects[1]),
 							];
 
 							// return;
@@ -128,7 +125,6 @@ export class StreamManager {
 									const cursor = editor.getCursor();
 									const convPos = editor.posToOffset(cursor);
 
-									// @ts-ignore
 									const cm6 = editor.cm;
 									const transaction = cm6.state.update({
 										changes: {
@@ -181,10 +177,10 @@ export class StreamManager {
 						// editor.setCursor(newCursor);
 					} else {
 						source.close();
-						logger.info("[CerebroGPT] SSE Closed");
+						logger.info('[CerebroGPT] SSE Closed');
 
 						if (unfinishedCodeBlock(txt)) {
-							txt += "\n```";
+							txt += '\n```';
 						}
 
 						// replace the text from initialCursor to fix any formatting issues from streaming
@@ -195,7 +191,7 @@ export class StreamManager {
 								line: initialCursorPosLine,
 								ch: initialCursorPosCh,
 							},
-							cursor
+							cursor,
 						);
 
 						// set cursor to end of replacement text
@@ -207,13 +203,13 @@ export class StreamManager {
 
 						if (!setAtCursor) {
 							// remove the text after the cursor
-							editor.replaceRange("", newCursor, {
+							editor.replaceRange('', newCursor, {
 								line: Infinity,
 								ch: Infinity,
 							});
 						} else {
 							new Notice(
-								"[CerebroGPT] Text pasted at cursor may leave artifacts. Please remove them manually. CerebroGPT cannot safely remove text when pasting at cursor."
+								'[CerebroGPT] Text pasted at cursor may leave artifacts. Please remove them manually. CerebroGPT cannot safely remove text when pasting at cursor.',
 							);
 						}
 
@@ -222,8 +218,8 @@ export class StreamManager {
 					}
 				});
 
-				source.addEventListener("abort", (e: any) => {
-					logger.info("[CerebroGPT] SSE Closed Event");
+				source.addEventListener('abort', (e: any) => {
+					logger.info('[CerebroGPT] SSE Closed Event');
 
 					// if e was triggered by stopStreaming, then resolve
 					if (this.manualClose) {
@@ -231,26 +227,23 @@ export class StreamManager {
 					}
 				});
 
-				source.addEventListener("error", (e: any) => {
+				source.addEventListener('error', (e: any) => {
 					try {
-						logger.info(
-							"[CerebroGPT] SSE Error: ",
-							JSON.parse(e.data)
-						);
+						logger.info('[CerebroGPT] SSE Error: ', JSON.parse(e.data));
 						source.close();
-						logger.info("[CerebroGPT] SSE Closed");
+						logger.info('[CerebroGPT] SSE Closed');
 						reject(JSON.parse(e.data));
 					} catch (err) {
-						logger.info("[CerebroGPT] Unknown Error: ", e);
+						logger.info('[CerebroGPT] Unknown Error: ', e);
 						source.close();
-						logger.info("[CerebroGPT] SSE Closed");
+						logger.info('[CerebroGPT] SSE Closed');
 						reject(e);
 					}
 				});
 
 				source.stream();
 			} catch (err) {
-				logger.info("SSE Error", err);
+				logger.info('SSE Error', err);
 				reject(err);
 			}
 		});

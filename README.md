@@ -1,6 +1,3 @@
-
-
-
 # ChatGPT-MD
 
 A (nearly) seamless integration of ChatGPT into Obsidian.
@@ -15,27 +12,26 @@ https://user-images.githubusercontent.com/3282661/223005882-6632c997-b9a6-445b-8
 
 ## Features
 
-- Chat from *any* MD note
-- Create Chat *Templates* for sharing and running similar scenarios. Check out the companion repo [chatgpt-md-templates](https://github.com/bramses/chatgpt-md-templates) for some templates!
-- As *minimal boilerplate as possible*, only two required in fact! `<hr class="__chatgpt_plugin">` and `role::system|assistant|user`
-- Use *frontmatter* to change variables for the ChatGPT API
-- *Stream* characters to Obsidian, creating a realtime feel
-- Uses *regular Markdown*. Meaning everything from *lists* to *code blocks* from ChatGPT *will render*!
-- Create chats from *highlighted text*.
-- [*Infer title* from messages](https://github.com/bramses/chatgpt-md/discussions/11). Can be set to run automatically after >4 messages.
-- Stream at cursor position or at end of file. Can be set in settings.
-- Choose [heading level for role](https://github.com/bramses/chatgpt-md/pull/22) h1-h6. Can be set in settings.
-- Custom endpoints can be specified using the url parameter in your front matter. See FAQ for an example.
-- Stop a running stream with a command. See commands section below.
-- (NEW!) Choose between nine languages for "Infer Title". Can be set in settings.
-- (NEW!) ChatGPT comment blocks. Allows you to leave scratchpad notes, backlinks...or anything else really!! See command below for details.
+-   Chat from _any_ MD note
+-   Create Chat _Templates_ for sharing and running similar scenarios. Check out the companion repo [chatgpt-md-templates](https://github.com/bramses/chatgpt-md-templates) for some templates!
+-   As _minimal boilerplate as possible_, only two required in fact! `<hr class="__chatgpt_plugin">` and `role::system|assistant|user`
+-   Use _frontmatter_ to change variables for the ChatGPT API
+-   _Stream_ characters to Obsidian, creating a realtime feel
+-   Uses _regular Markdown_. Meaning everything from _lists_ to _code blocks_ from ChatGPT _will render_!
+-   Create chats from _highlighted text_.
+-   [_Infer title_ from messages](https://github.com/bramses/chatgpt-md/discussions/11). Can be set to run automatically after >4 messages.
+-   Stream at cursor position or at end of file. Can be set in settings.
+-   Choose [heading level for role](https://github.com/bramses/chatgpt-md/pull/22) h1-h6. Can be set in settings.
+-   Custom endpoints can be specified using the url parameter in your front matter. See FAQ for an example.
+-   Stop a running stream with a command. See commands section below.
+-   (NEW!) Choose between nine languages for "Infer Title". Can be set in settings.
+-   (NEW!) ChatGPT comment blocks. Allows you to leave scratchpad notes, backlinks...or anything else really!! See command below for details.
 
 ### Commands
 
 #### Chat
 
 The main command! Parses the file and calls ChatGPT. Recommended to add to a hotkey for easy usage.
-
 
 #### Create New Chat with Highlighted Text
 
@@ -68,7 +64,7 @@ Stops the stream. Useful if you want to stop the stream if you don't like where 
 
 #### Add Divider
 
-Add a ChatGPT MD Horizontal Rule and `role::user`. 
+Add a ChatGPT MD Horizontal Rule and `role::user`.
 
 **!! Note: both `role::system|assistant|user` AND `<hr class="__chatgpt_plugin">` are REQUIRED for the plugin to work!!**
 
@@ -110,10 +106,9 @@ See pics below:
 ![Screenshot 2023-03-15 18-47-40](https://user-images.githubusercontent.com/3282661/225460844-54101bf2-d5ac-4725-95b5-c79bf6b6ed6a.png)
 ![Screenshot 2023-03-15 18-48-30](https://user-images.githubusercontent.com/3282661/225460845-6ff12c98-ea74-4ae8-bc2d-4161e89acdda.png)
 
-
 ### Q: How do I use GPT-4?
 
-If you are off the [waitlist](https://openai.com/waitlist/gpt-4-api), simply replace `model: gpt-3.5-turbo` with `model: gpt-4` in the frontmatter. (*note: gpt-4 is slower than turbo!*)
+If you are off the [waitlist](https://openai.com/waitlist/gpt-4-api), simply replace `model: gpt-3.5-turbo` with `model: gpt-4` in the frontmatter. (_note: gpt-4 is slower than turbo!_)
 
 ### Q: How do I use a custom endpoint?
 
@@ -128,9 +123,9 @@ The custom API must conform to the OpenAI API spec. eg you could use Azure's Ope
 
 ## About the Developer
 
-This repository was written by Bram Adams, a writer and programmer based out of NYC. 
+This repository was written by Bram Adams, a writer and programmer based out of NYC.
 
-Bram publishes a weekly newsletter, is a [community developer ambassador for OpenAI](https://platform.openai.com/ambassadors), and does freeleance contracts ([for hire!](https://www.bramadams.dev/consulting/)) related to AI/web dev/AR+VR. 
+Bram publishes a weekly newsletter, is a [community developer ambassador for OpenAI](https://platform.openai.com/ambassadors), and does freeleance contracts ([for hire!](https://www.bramadams.dev/consulting/)) related to AI/web dev/AR+VR.
 
 As of Fall 2023, Bram is actively working on [Commonplace Bot](https://github.com/bramses/commonplace-bot), a novel and modern look into how LLMs and creative coding can help us capture, engage, and creatively remix the best pieces of information we come across. You can test it out live in the Bram Adams' [Discord server](https://discord.gg/GrgkFP3Je3).
 
@@ -138,6 +133,6 @@ Bram is the creator of [Stenography](https://stenography.dev), an API and [VSC E
 
 Previously Developer Advocate @ [Algolia](https://www.algolia.com/), Software Engineer @ [HBO](https://www.hbo.com/), Computer Science B.S. @ [University of Rochester](https://rochester.edu/)
 
-You can learn more about him and his work on his [website](https://www.bramadams.dev/about/). 
+You can learn more about him and his work on his [website](https://www.bramadams.dev/about/).
 
 The best way to support his work is to sign up for his newsletter [here](https://www.bramadams.dev/#/portal/).

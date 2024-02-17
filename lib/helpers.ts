@@ -1,18 +1,9 @@
-import {
-	FileManager,
-	MarkdownView,
-	Notice,
-	Vault,
-	Modal,
-	App,
-	Setting,
-} from "obsidian";
-import pino from "pino";
+import { FileManager, MarkdownView, Notice, Vault, Modal, App, Setting } from 'obsidian';
+import pino from 'pino';
 
 const logger = pino({
-	level: 'info'
+	level: 'info',
 });
-
 
 // check for unclosed code block in MD (three backticks), string should contain three backticks in a row
 export const unfinishedCodeBlock = (txt: string) => {
@@ -21,8 +12,7 @@ export const unfinishedCodeBlock = (txt: string) => {
 		return false;
 	}
 
-	if (matcher.length % 2 !== 0)
-		logger.info("[CerebroGPT] unclosed code block detected");
+	if (matcher.length % 2 !== 0) logger.info('[CerebroGPT] unclosed code block detected');
 
 	return matcher.length % 2 !== 0;
 };
@@ -32,13 +22,13 @@ export const writeInferredTitleToEditor = async (
 	view: MarkdownView,
 	fileManager: FileManager,
 	chatFolder: string,
-	title: string
+	title: string,
 ) => {
 	try {
 		// set title of file
 		const file = view.file;
 		// replace trailing / if it exists
-		const folder = chatFolder.replace(/\/$/, "");
+		const folder = chatFolder.replace(/\/$/, '');
 
 		// if new file name exists in directory, append a number to the end
 		let newFileName = `${folder}/${title}.md`;
@@ -51,8 +41,8 @@ export const writeInferredTitleToEditor = async (
 
 		fileManager.renameFile(file, newFileName);
 	} catch (err) {
-		new Notice("[CerebroGPT] Error writing inferred title to editor");
-		logger.info("[CerebroGPT] Error writing inferred title to editor", err);
+		new Notice('[CerebroGPT] Error writing inferred title to editor');
+		logger.info('[CerebroGPT] Error writing inferred title to editor', err);
 		throw err;
 	}
 };
@@ -61,25 +51,21 @@ export const createFolderModal = async (
 	app: App,
 	vault: Vault,
 	folderName: string,
-	folderPath: string
+	folderPath: string,
 ) => {
-	const folderCreationModal = new FolderCreationModal(
-		app,
-		folderName,
-		folderPath
-	);
+	const folderCreationModal = new FolderCreationModal(app, folderName, folderPath);
 
 	folderCreationModal.open();
 	const result = await folderCreationModal.waitForModalValue();
 
 	if (result) {
-		logger.info("[CerebroGPT] Creating folder");
-        await vault.createFolder(folderPath);
+		logger.info('[CerebroGPT] Creating folder');
+		await vault.createFolder(folderPath);
 	} else {
-		logger.info("[CerebroGPT] Not creating folder");
+		logger.info('[CerebroGPT] Not creating folder');
 	}
 
-    return result;
+	return result;
 };
 
 class FolderCreationModal extends Modal {
@@ -89,11 +75,7 @@ class FolderCreationModal extends Modal {
 	modalPromise: Promise<boolean>;
 	resolveModalPromise: (value: boolean) => void;
 
-	constructor(
-		app: App,
-		folderName: string,
-		folderPath: string
-	) {
+	constructor(app: App, folderName: string, folderPath: string) {
 		super(app);
 		this.folderName = folderName;
 		this.folderPath = folderPath;
@@ -107,39 +89,37 @@ class FolderCreationModal extends Modal {
 	onOpen() {
 		const { contentEl } = this;
 
-		contentEl.createEl("h2", {
+		contentEl.createEl('h2', {
 			text: `[CerebroGPT] No ${this.folderName} folder found.`,
 		});
 
-		contentEl.createEl("p", {
+		contentEl.createEl('p', {
 			text: `If you choose "Yes, Create", the plugin will automatically create a folder at: ${this.folderPath}. You can change this path in the plugin settings.`,
 		});
 
-
 		new Setting(contentEl).addButton((btn) =>
 			btn
-				.setButtonText("Yes, Create Folder")
-				.setTooltip("Create folder")
+				.setButtonText('Yes, Create Folder')
+				.setTooltip('Create folder')
 				.setCta()
 				.onClick(() => {
 					this.result = true; // This can be any value the user provides.
 					this.resolveModalPromise(this.result);
 					this.close();
-				})
+				}),
 		);
 
-        new Setting(contentEl).addButton((btn) =>
+		new Setting(contentEl).addButton((btn) =>
 			btn
 				.setButtonText("No, I'll create it myself")
-				.setTooltip("Cancel")
+				.setTooltip('Cancel')
 				.setCta()
 				.onClick(() => {
 					this.result = false; // This can be any value the user provides.
 					this.resolveModalPromise(this.result);
 					this.close();
-				})
+				}),
 		);
-
 	}
 
 	waitForModalValue() {

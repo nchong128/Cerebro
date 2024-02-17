@@ -1,20 +1,20 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import {Editor, MarkdownView, Notice, Platform, Plugin, requestUrl,} from "obsidian";
-import {StreamManager} from "./stream";
-import {createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor,} from "lib/helpers";
-import {SettingsTab} from "./settings";
-import {ChatTemplatesHandler} from "./chatTemplates";
-import {CerebroGPTSettings, ChatFrontMatter} from "./types";
-import {DEFAULT_SETTINGS, DEFAULT_URL} from "./constants";
-import pino from "pino";
-import { OpenAIClient} from "./openAIClient";
-import {ChatCompletionMessageParam} from "openai/src/resources/chat/completions";
-import OpenAI from "openai";
+import { Editor, MarkdownView, Notice, Platform, Plugin, requestUrl } from 'obsidian';
+import { StreamManager } from './stream';
+import { createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor } from 'lib/helpers';
+import { SettingsTab } from './settings';
+import { ChatTemplatesHandler } from './chatTemplates';
+import { CerebroGPTSettings, ChatFrontMatter } from './types';
+import { DEFAULT_SETTINGS, DEFAULT_URL } from './constants';
+import pino from 'pino';
+import { OpenAIClient } from './openAIClient';
+import { ChatCompletionMessageParam } from 'openai/src/resources/chat/completions';
+import OpenAI from 'openai';
 import ChatCompletion = OpenAI.ChatCompletion;
-import {ChatCompletionChunk} from "openai/resources";
+import { ChatCompletionChunk } from 'openai/resources';
 
 const logger = pino({
-	level: 'debug'
+	level: 'debug',
 });
 
 export default class CerebroGPT extends Plugin {
@@ -25,7 +25,7 @@ export default class CerebroGPT extends Plugin {
 		streamManager: StreamManager,
 		editor: Editor,
 		messages: ChatCompletionMessageParam[],
-		model = "gpt-3.5-turbo",
+		model = 'gpt-3.5-turbo',
 		max_tokens = 250,
 		temperature = 0.3,
 		top_p = 1,
@@ -36,10 +36,10 @@ export default class CerebroGPT extends Plugin {
 		n = 1,
 		logit_bias: any | null = null,
 		user: string | null = null,
-		url = DEFAULT_URL
+		url = DEFAULT_URL,
 	) {
 		try {
-			logger.info("[CerebroGPT] Calling OpenAI API");
+			logger.info('[CerebroGPT] Calling OpenAI API');
 
 			if (stream) {
 				const options = {
@@ -63,21 +63,21 @@ export default class CerebroGPT extends Plugin {
 					url,
 					options,
 					this.settings.generateAtCursor,
-					this.getHeadingPrefix()
+					this.getHeadingPrefix(),
 				);
 
-				logger.info("Response from stream", response);
+				logger.info('Response from stream', response);
 
-				return { fullstr: response, mode: "streaming" };
+				return { fullstr: response, mode: 'streaming' };
 			} else {
 				const responseUrl = await requestUrl({
 					url: url,
-					method: "POST",
+					method: 'POST',
 					headers: {
 						Authorization: `Bearer ${this.settings.apiKey}`,
-						"Content-Type": "application/json",
+						'Content-Type': 'application/json',
 					},
-					contentType: "application/json",
+					contentType: 'application/json',
 					body: JSON.stringify({
 						model: model,
 						messages: messages,
@@ -99,9 +99,7 @@ export default class CerebroGPT extends Plugin {
 					const json = responseUrl.json;
 
 					if (json && json.error) {
-						new Notice(
-							`[CerebroGPT] Stream = False Error :: ${json.error.message}`
-						);
+						new Notice(`[CerebroGPT] Stream = False Error :: ${json.error.message}`);
 						throw new Error(JSON.stringify(json.error));
 					}
 				} catch (err) {
@@ -124,27 +122,17 @@ export default class CerebroGPT extends Plugin {
 					throw new Error(JSON.stringify(err.error));
 				} else {
 					if (url !== DEFAULT_URL) {
-						new Notice(
-							"[CerebroGPT] Issue calling specified url: " + url
-						);
-						throw new Error(
-							"[CerebroGPT] Issue calling specified url: " + url
-						);
+						new Notice('[CerebroGPT] Issue calling specified url: ' + url);
+						throw new Error('[CerebroGPT] Issue calling specified url: ' + url);
 					} else {
-						new Notice(
-							`[CerebroGPT] Error :: ${JSON.stringify(err)}`
-						);
+						new Notice(`[CerebroGPT] Error :: ${JSON.stringify(err)}`);
 						throw new Error(JSON.stringify(err));
 					}
 				}
 			}
 
-			new Notice(
-				"issue calling OpenAI API, see console for more details"
-			);
-			throw new Error(
-				"issue calling OpenAI API, see error for more details: " + err
-			);
+			new Notice('issue calling OpenAI API, see console for more details');
+			throw new Error('issue calling OpenAI API, see error for more details: ' + err);
 		}
 	}
 
@@ -170,28 +158,25 @@ export default class CerebroGPT extends Plugin {
 			const noteFile = app.workspace.getActiveFile();
 
 			if (!noteFile) {
-				throw new Error("No active file");
+				throw new Error('No active file');
 			}
 
-			const metaMatter =
-				app.metadataCache.getFileCache(noteFile)?.frontmatter;
+			const metaMatter = app.metadataCache.getFileCache(noteFile)?.frontmatter;
 
 			const shouldStream =
 				metaMatter?.stream !== undefined
 					? metaMatter.stream // If defined in frontmatter, use its value.
 					: this.settings.stream !== undefined
-					? this.settings.stream // If not defined in frontmatter but exists globally, use its value.
-					: true; // Otherwise fallback on true.
+						? this.settings.stream // If not defined in frontmatter but exists globally, use its value.
+						: true; // Otherwise fallback on true.
 
 			const temperature =
-				metaMatter?.temperature !== undefined
-					? metaMatter.temperature
-					: 0.3;
+				metaMatter?.temperature !== undefined ? metaMatter.temperature : 0.3;
 
 			return {
 				title: metaMatter?.title || view.file?.basename,
 				tags: metaMatter?.tags || [],
-				model: metaMatter?.model || "gpt-3.5-turbo",
+				model: metaMatter?.model || 'gpt-3.5-turbo',
 				temperature: temperature,
 				top_p: metaMatter?.top_p || 1,
 				presence_penalty: metaMatter?.presence_penalty || 0,
@@ -204,9 +189,8 @@ export default class CerebroGPT extends Plugin {
 				user: metaMatter?.user || null,
 				system_commands: metaMatter?.system_commands || null,
 			};
-
 		} catch (err) {
-			throw new Error("Error getting frontmatter");
+			throw new Error('Error getting frontmatter');
 		}
 	}
 
@@ -218,7 +202,7 @@ export default class CerebroGPT extends Plugin {
 			// <hr class="__chatgpt_plugin">
 			return text.split('<hr class="__chatgpt_plugin">');
 		} catch (err) {
-			throw new Error("Error splitting messages" + err);
+			throw new Error('Error splitting messages' + err);
 		}
 	}
 
@@ -229,11 +213,11 @@ export default class CerebroGPT extends Plugin {
 			const frontmatter = editor.getValue().match(YAMLFrontMatter);
 
 			if (!frontmatter) {
-				throw new Error("no frontmatter found");
+				throw new Error('no frontmatter found');
 			}
 
 			// clear editor
-			editor.setValue("");
+			editor.setValue('');
 
 			// add frontmatter
 			editor.replaceRange(frontmatter[0], editor.getCursor());
@@ -251,7 +235,7 @@ export default class CerebroGPT extends Plugin {
 
 			return newCursor;
 		} catch (err) {
-			throw new Error("Error clearing conversation" + err);
+			throw new Error('Error clearing conversation' + err);
 		}
 	}
 
@@ -269,7 +253,7 @@ export default class CerebroGPT extends Plugin {
 
 			return newCursor;
 		} catch (err) {
-			throw new Error("Error moving cursor to end of file" + err);
+			throw new Error('Error moving cursor to end of file' + err);
 		}
 	}
 
@@ -279,44 +263,39 @@ export default class CerebroGPT extends Plugin {
 		 */
 		try {
 			const YAMLFrontMatter = /---\s*[\s\S]*?\s*---/g;
-			const newMessage = message.replace(YAMLFrontMatter, "");
+			const newMessage = message.replace(YAMLFrontMatter, '');
 			return newMessage;
 		} catch (err) {
-			throw new Error("Error removing YML from message" + err);
+			throw new Error('Error removing YML from message' + err);
 		}
 	}
 
 	extractRoleAndMessage(message: string): ChatCompletionMessageParam {
 		try {
-			if (message.includes("role::")) {
-				const role = message.split("role::")[1].split("\n")[0].trim();
-				const content = message
-					.split("role::")[1]
-					.split("\n")
-					.slice(1)
-					.join("\n")
-					.trim();
+			if (message.includes('role::')) {
+				const role = message.split('role::')[1].split('\n')[0].trim();
+				const content = message.split('role::')[1].split('\n').slice(1).join('\n').trim();
 
-				if (role === "assistant" || role === "system" || role === "user") {
-					return { role, content }
+				if (role === 'assistant' || role === 'system' || role === 'user') {
+					return { role, content };
 				}
-				throw new Error("Unknown role " + role);
+				throw new Error('Unknown role ' + role);
 			} else {
-				return { role: "user", content: message };
+				return { role: 'user', content: message };
 			}
 		} catch (err) {
-			throw new Error("Error extracting role and message" + err);
+			throw new Error('Error extracting role and message' + err);
 		}
 	}
 
 	getHeadingPrefix() {
 		const headingLevel = this.settings.headingLevel;
 		if (headingLevel === 0) {
-			return "";
+			return '';
 		} else if (headingLevel > 6) {
-			return "#".repeat(6) + " ";
+			return '#'.repeat(6) + ' ';
 		}
-		return "#".repeat(headingLevel) + " ";
+		return '#'.repeat(headingLevel) + ' ';
 	}
 
 	appendMessage(editor: Editor, role: string, message: string) {
@@ -335,25 +314,22 @@ export default class CerebroGPT extends Plugin {
 		 */
 		try {
 			// Comment block in form of =begin-chatgpt-md-comment and =end-chatgpt-md-comment
-			const commentBlock =
-				/=begin-chatgpt-md-comment[\s\S]*?=end-chatgpt-md-comment/g;
+			const commentBlock = /=begin-chatgpt-md-comment[\s\S]*?=end-chatgpt-md-comment/g;
 
 			// Remove comment block
-			return message.replace(commentBlock, "");
+			return message.replace(commentBlock, '');
 		} catch (err) {
-			throw new Error("Error removing comments from messages" + err);
+			throw new Error('Error removing comments from messages' + err);
 		}
 	}
 
 	async inferTitleFromMessages(messages: string[]) {
-		logger.info("[CerebroGPT] Inferring Title");
-		new Notice("[CerebroGPT] Inferring title from messages...");
+		logger.info('[CerebroGPT] Inferring Title');
+		new Notice('[CerebroGPT] Inferring title from messages...');
 
 		try {
 			if (messages.length < 2) {
-				new Notice(
-					"Not enough messages to infer title. Minimum 2 messages."
-				);
+				new Notice('Not enough messages to infer title. Minimum 2 messages.');
 				return;
 			}
 
@@ -363,21 +339,21 @@ export default class CerebroGPT extends Plugin {
 
 			const titleMessage = [
 				{
-					role: "user",
+					role: 'user',
 					content: prompt,
 				},
 			];
 
 			const responseUrl = await requestUrl({
 				url: `https://api.openai.com/v1/chat/completions`,
-				method: "POST",
+				method: 'POST',
 				headers: {
 					Authorization: `Bearer ${this.settings.apiKey}`,
-					"Content-Type": "application/json",
+					'Content-Type': 'application/json',
 				},
-				contentType: "application/json",
+				contentType: 'application/json',
 				body: JSON.stringify({
-					model: "gpt-3.5-turbo",
+					model: 'gpt-3.5-turbo',
 					messages: titleMessage,
 					max_tokens: 50,
 					temperature: 0.0,
@@ -388,15 +364,13 @@ export default class CerebroGPT extends Plugin {
 			const response = responseUrl.text;
 			const responseJSON = JSON.parse(response);
 			return responseJSON.choices[0].message.content
-				.replace(/[:/\\]/g, "")
-				.replace("Title", "")
-				.replace("title", "")
+				.replace(/[:/\\]/g, '')
+				.replace('Title', '')
+				.replace('title', '')
 				.trim();
 		} catch (err) {
-			new Notice("[CerebroGPT] Error inferring title from messages");
-			throw new Error(
-				"[CerebroGPT] Error inferring title from messages" + err
-			);
+			new Notice('[CerebroGPT] Error inferring title from messages');
+			throw new Error('[CerebroGPT] Error inferring title from messages' + err);
 		}
 	}
 
@@ -408,27 +382,25 @@ export default class CerebroGPT extends Plugin {
 
 			return title.length == format.length && pattern.test(title);
 		} catch (err) {
-			throw new Error(
-				"Error checking if title is in timestamp format" + err
-			);
+			throw new Error('Error checking if title is in timestamp format' + err);
 		}
 	}
 
 	generateDatePattern(format: string) {
 		const pattern = format
-			.replace(/[-/\\^$*+?.()|[\]{}]/g, "\\$&") // Escape any special characters
-			.replace("YYYY", "\\d{4}") // Match exactly four digits for the year
-			.replace("MM", "\\d{2}") // Match exactly two digits for the month
-			.replace("DD", "\\d{2}") // Match exactly two digits for the day
-			.replace("hh", "\\d{2}") // Match exactly two digits for the hour
-			.replace("mm", "\\d{2}") // Match exactly two digits for the minute
-			.replace("ss", "\\d{2}"); // Match exactly two digits for the second
+			.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') // Escape any special characters
+			.replace('YYYY', '\\d{4}') // Match exactly four digits for the year
+			.replace('MM', '\\d{2}') // Match exactly two digits for the month
+			.replace('DD', '\\d{2}') // Match exactly two digits for the day
+			.replace('hh', '\\d{2}') // Match exactly two digits for the hour
+			.replace('mm', '\\d{2}') // Match exactly two digits for the minute
+			.replace('ss', '\\d{2}'); // Match exactly two digits for the second
 
 		return new RegExp(`^${pattern}$`);
 	}
 
 	// get date from format
-	getDate(date: Date, format = "YYYYMMDDhhmmss") {
+	getDate(date: Date, format = 'YYYYMMDDhhmmss') {
 		const year = date.getFullYear();
 		const month = date.getMonth() + 1;
 		const day = date.getDate();
@@ -436,55 +408,53 @@ export default class CerebroGPT extends Plugin {
 		const minute = date.getMinutes();
 		const second = date.getSeconds();
 
-		const paddedMonth = month.toString().padStart(2, "0");
-		const paddedDay = day.toString().padStart(2, "0");
-		const paddedHour = hour.toString().padStart(2, "0");
-		const paddedMinute = minute.toString().padStart(2, "0");
-		const paddedSecond = second.toString().padStart(2, "0");
+		const paddedMonth = month.toString().padStart(2, '0');
+		const paddedDay = day.toString().padStart(2, '0');
+		const paddedHour = hour.toString().padStart(2, '0');
+		const paddedMinute = minute.toString().padStart(2, '0');
+		const paddedSecond = second.toString().padStart(2, '0');
 
 		return format
-			.replace("YYYY", year.toString())
-			.replace("MM", paddedMonth)
-			.replace("DD", paddedDay)
-			.replace("hh", paddedHour)
-			.replace("mm", paddedMinute)
-			.replace("ss", paddedSecond);
+			.replace('YYYY', year.toString())
+			.replace('MM', paddedMonth)
+			.replace('DD', paddedDay)
+			.replace('hh', paddedHour)
+			.replace('mm', paddedMinute)
+			.replace('ss', paddedSecond);
 	}
 
 	async onload(): Promise<void> {
-		logger.debug("[CerebroGPT] Adding status bar");
+		logger.debug('[CerebroGPT] Adding status bar');
 
 		const statusBarItemEl = this.addStatusBarItem();
 
-		logger.debug("[CerebroGPT] Loading settings");
+		logger.debug('[CerebroGPT] Loading settings');
 		await this.loadSettings();
 
 		const streamManager = new StreamManager();
 
-		this.openAIClient = new OpenAIClient(
-			this.settings.apiKey
-		);
+		this.openAIClient = new OpenAIClient(this.settings.apiKey);
 
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
-			id: "call-chatgpt-api",
-			name: "Chat",
-			icon: "message-circle",
+			id: 'call-chatgpt-api',
+			name: 'Chat',
+			icon: 'message-circle',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-				statusBarItemEl.setText("[CerebroGPT] Calling API...");
+				statusBarItemEl.setText('[CerebroGPT] Calling API...');
 
 				// Retrieve frontmatter
 				const frontmatter = this.getFrontmatter(view);
 
 				// Retrieve messages
-				const bodyWithoutYML = this.removeYMLFromMessage(
-					editor.getValue()
-				);
+				const bodyWithoutYML = this.removeYMLFromMessage(editor.getValue());
 				let messages = this.splitMessages(bodyWithoutYML);
 				messages = messages.map((message) => this.removeCommentsFromMessages(message));
 
-				const chatCompletionMessages = messages.map((message) => this.extractRoleAndMessage(message));
+				const chatCompletionMessages = messages.map((message) =>
+					this.extractRoleAndMessage(message),
+				);
 
 				if (frontmatter.system_commands) {
 					const systemCommands = frontmatter.system_commands;
@@ -492,10 +462,10 @@ export default class CerebroGPT extends Plugin {
 					chatCompletionMessages.unshift(
 						...systemCommands.map((command): ChatCompletionMessageParam => {
 							return {
-								role: "system",
+								role: 'system',
 								content: command,
 							};
-						})
+						}),
 					);
 				}
 
@@ -505,36 +475,31 @@ export default class CerebroGPT extends Plugin {
 				}
 
 				if (Platform.isMobile) {
-					new Notice("[CerebroGPT] Calling API");
+					new Notice('[CerebroGPT] Calling API');
 				}
 
 				if (frontmatter.stream) {
-
 				} else {
-					this.openAIClient.createChatCompletion(chatCompletionMessages, frontmatter)
+					this.openAIClient
+						.createChatCompletion(chatCompletionMessages, frontmatter)
 						.then((response: ChatCompletion) => {
 							if (frontmatter.stream) {
-
 							} else {
-								let responseChatCompletion: ChatCompletion = response;
-								let responseStr = responseChatCompletion.choices[0].message.content || "No response";
-								logger.info("[CerebroGPT] Model stopped generating", {
-									finish_reason: responseChatCompletion.choices[0].finish_reason
+								const responseChatCompletion: ChatCompletion = response;
+								let responseStr =
+									responseChatCompletion.choices[0].message.content ||
+									'No response';
+								logger.info('[CerebroGPT] Model stopped generating', {
+									finish_reason: responseChatCompletion.choices[0].finish_reason,
 								});
-								if (unfinishedCodeBlock(responseStr)) responseStr = responseStr + "\n```";
-								this.appendMessage(
-									editor,
-									"assistant",
-									responseStr
-								);
-
+								if (unfinishedCodeBlock(responseStr))
+									responseStr = responseStr + '\n```';
+								this.appendMessage(editor, 'assistant', responseStr);
 							}
 
-							statusBarItemEl.setText("");
+							statusBarItemEl.setText('');
 						});
 				}
-
-
 
 				// this.callOpenAiApi(
 				// 	streamManager,
@@ -655,18 +620,18 @@ export default class CerebroGPT extends Plugin {
 		});
 
 		this.addCommand({
-			id: "add-hr",
-			name: "Add divider",
-			icon: "minus",
+			id: 'add-hr',
+			name: 'Add divider',
+			icon: 'minus',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				this.addHR(editor, "user");
+				this.addHR(editor, 'user');
 			},
 		});
 
 		this.addCommand({
-			id: "add-comment-block",
-			name: "Add comment block",
-			icon: "comment",
+			id: 'add-comment-block',
+			name: 'Add comment block',
+			icon: 'comment',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				// add a comment block at cursor in format: =begin-chatgpt-md-comment and =end-chatgpt-md-comment
 				const cursor = editor.getCursor();
@@ -686,31 +651,29 @@ export default class CerebroGPT extends Plugin {
 		});
 
 		this.addCommand({
-			id: "stop-streaming",
-			name: "Stop streaming",
-			icon: "octagon",
+			id: 'stop-streaming',
+			name: 'Stop streaming',
+			icon: 'octagon',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				streamManager.stopStreaming();
 			},
 		});
 
 		this.addCommand({
-			id: "infer-title",
-			name: "Infer title",
-			icon: "subtitles",
+			id: 'infer-title',
+			name: 'Infer title',
+			icon: 'subtitles',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				// get messages
-				const bodyWithoutYML = this.removeYMLFromMessage(
-					editor.getValue()
-				);
+				const bodyWithoutYML = this.removeYMLFromMessage(editor.getValue());
 				let messages = this.splitMessages(bodyWithoutYML);
 				messages = messages.map((message) => {
 					return this.removeCommentsFromMessages(message);
 				});
 
-				statusBarItemEl.setText("[CerebroGPT] Calling API...");
+				statusBarItemEl.setText('[CerebroGPT] Calling API...');
 				const title = await this.inferTitleFromMessages(messages);
-				statusBarItemEl.setText("");
+				statusBarItemEl.setText('');
 
 				if (title) {
 					await writeInferredTitleToEditor(
@@ -718,7 +681,7 @@ export default class CerebroGPT extends Plugin {
 						view,
 						this.app.fileManager,
 						this.settings.chatFolder,
-						title
+						title,
 					);
 				}
 			},
@@ -726,37 +689,30 @@ export default class CerebroGPT extends Plugin {
 
 		// grab highlighted text and move to new file in default chat format
 		this.addCommand({
-			id: "move-to-chat",
-			name: "Create new chat with highlighted text",
-			icon: "highlighter",
+			id: 'move-to-chat',
+			name: 'Create new chat with highlighted text',
+			icon: 'highlighter',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				try {
 					const selectedText = editor.getSelection();
 
-					if (
-						!this.settings.chatFolder ||
-						this.settings.chatFolder.trim() === ""
-					) {
+					if (!this.settings.chatFolder || this.settings.chatFolder.trim() === '') {
 						new Notice(
-							`[CerebroGPT] No chat folder value found. Please set one in settings.`
+							`[CerebroGPT] No chat folder value found. Please set one in settings.`,
 						);
 						return;
 					}
 
-					if (
-						!(await this.app.vault.adapter.exists(
-							this.settings.chatFolder
-						))
-					) {
+					if (!(await this.app.vault.adapter.exists(this.settings.chatFolder))) {
 						const result = await createFolderModal(
 							this.app,
 							this.app.vault,
-							"chatFolder",
-							this.settings.chatFolder
+							'chatFolder',
+							this.settings.chatFolder,
 						);
 						if (!result) {
 							new Notice(
-								`[CerebroGPT] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
+								`[CerebroGPT] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
 							);
 							return;
 						}
@@ -765,23 +721,19 @@ export default class CerebroGPT extends Plugin {
 					const newFile = await this.app.vault.create(
 						`${this.settings.chatFolder}/${this.getDate(
 							new Date(),
-							this.settings.dateFormat
+							this.settings.dateFormat,
 						)}.md`,
-						`${this.settings.defaultChatFrontmatter}\n\n${selectedText}`
+						`${this.settings.defaultChatFrontmatter}\n\n${selectedText}`,
 					);
 
 					// open new file
-					await this.app.workspace.openLinkText(
-						newFile.basename,
-						"",
-						true,
-						{ state: { mode: "source" } }
-					);
-					const activeView =
-						this.app.workspace.getActiveViewOfType(MarkdownView);
+					await this.app.workspace.openLinkText(newFile.basename, '', true, {
+						state: { mode: 'source' },
+					});
+					const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 
 					if (!activeView) {
-						new Notice("No active markdown editor found.");
+						new Notice('No active markdown editor found.');
 						return;
 					}
 
@@ -790,44 +742,37 @@ export default class CerebroGPT extends Plugin {
 				} catch (err) {
 					logger.error(
 						`[CerebroGPT] Error in Create new chat with highlighted text`,
-						err
+						err,
 					);
 					new Notice(
-						`[CerebroGPT] Error in Create new chat with highlighted text, check console`
+						`[CerebroGPT] Error in Create new chat with highlighted text, check console`,
 					);
 				}
 			},
 		});
 
 		this.addCommand({
-			id: "choose-chat-template",
-			name: "Create new chat from template",
-			icon: "layout-template",
+			id: 'choose-chat-template',
+			name: 'Create new chat from template',
+			icon: 'layout-template',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				if (
-					!this.settings.chatFolder ||
-					this.settings.chatFolder.trim() === ""
-				) {
+				if (!this.settings.chatFolder || this.settings.chatFolder.trim() === '') {
 					new Notice(
-						`[CerebroGPT] No chat folder value found. Please set one in settings.`
+						`[CerebroGPT] No chat folder value found. Please set one in settings.`,
 					);
 					return;
 				}
 
-				if (
-					!(await this.app.vault.adapter.exists(
-						this.settings.chatFolder
-					))
-				) {
+				if (!(await this.app.vault.adapter.exists(this.settings.chatFolder))) {
 					const result = await createFolderModal(
 						this.app,
 						this.app.vault,
-						"chatFolder",
-						this.settings.chatFolder
+						'chatFolder',
+						this.settings.chatFolder,
 					);
 					if (!result) {
 						new Notice(
-							`[CerebroGPT] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
+							`[CerebroGPT] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
 						);
 						return;
 					}
@@ -835,28 +780,24 @@ export default class CerebroGPT extends Plugin {
 
 				if (
 					!this.settings.chatTemplateFolder ||
-					this.settings.chatTemplateFolder.trim() === ""
+					this.settings.chatTemplateFolder.trim() === ''
 				) {
 					new Notice(
-						`[CerebroGPT] No chat template folder value found. Please set one in settings.`
+						`[CerebroGPT] No chat template folder value found. Please set one in settings.`,
 					);
 					return;
 				}
 
-				if (
-					!(await this.app.vault.adapter.exists(
-						this.settings.chatTemplateFolder
-					))
-				) {
+				if (!(await this.app.vault.adapter.exists(this.settings.chatTemplateFolder))) {
 					const result = await createFolderModal(
 						this.app,
 						this.app.vault,
-						"chatTemplateFolder",
-						this.settings.chatTemplateFolder
+						'chatTemplateFolder',
+						this.settings.chatTemplateFolder,
 					);
 					if (!result) {
 						new Notice(
-							`[CerebroGPT] No chat template folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
+							`[CerebroGPT] No chat template folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
 						);
 						return;
 					}
@@ -865,15 +806,15 @@ export default class CerebroGPT extends Plugin {
 				new ChatTemplatesHandler(
 					this.app,
 					this.settings,
-					this.getDate(new Date(), this.settings.dateFormat)
+					this.getDate(new Date(), this.settings.dateFormat),
 				).open();
 			},
 		});
 
 		this.addCommand({
-			id: "clear-chat",
-			name: "Clear chat (except frontmatter)",
-			icon: "trash",
+			id: 'clear-chat',
+			name: 'Clear chat (except frontmatter)',
+			icon: 'trash',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				this.clearConversationExceptFrontmatter(editor);
 			},
@@ -883,19 +824,12 @@ export default class CerebroGPT extends Plugin {
 		this.addSettingTab(new SettingsTab(this.app, this));
 	}
 
-	onunload() {}
-
 	private async loadSettings(): Promise<void> {
-		this.settings = Object.assign(
-			{},
-			DEFAULT_SETTINGS,
-			await this.loadData()
-		);
-		logger.debug("Loaded settings", this.settings);
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		logger.debug('Loaded settings', this.settings);
 	}
 
 	private async saveSettings() {
 		await this.saveData(this.settings);
 	}
-
 }

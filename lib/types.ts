@@ -1,8 +1,6 @@
-import {FrontMatterCache} from "obsidian";
+import { FrontMatterCache } from 'obsidian';
 
-import {
-	ChatCompletionCreateParamsBase
-} from "openai/src/resources/chat/completions";
+import { ChatCompletionCreateParamsBase } from 'openai/src/resources/chat/completions';
 
 export interface CerebroGPTSettings {
 	apiKey: string;
@@ -17,9 +15,8 @@ export interface CerebroGPTSettings {
 	inferTitleLanguage: string;
 }
 
-export type ChatFrontMatter = Omit<ChatCompletionCreateParamsBase, "messages"> & {
+export type ChatFrontMatter = Omit<ChatCompletionCreateParamsBase, 'messages'> & {
 	title: string;
 	tags: FrontMatterCache;
 	system_commands: string[] | null;
-}
-
+};

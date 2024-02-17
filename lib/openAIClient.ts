@@ -1,8 +1,7 @@
-import OpenAI from "openai";
-import {ChatCompletionMessageParam} from "openai/src/resources/chat/completions";
-import {ChatFrontMatter} from "./types";
-import {APIPromise} from "openai/core";
-
+import OpenAI from 'openai';
+import { ChatCompletionMessageParam } from 'openai/src/resources/chat/completions';
+import { ChatFrontMatter } from './types';
+import { APIPromise } from 'openai/core';
 
 export class OpenAIClient {
 	private client: OpenAI;
@@ -10,7 +9,7 @@ export class OpenAIClient {
 	constructor(apiKey: string) {
 		this.client = new OpenAI({
 			apiKey,
-			dangerouslyAllowBrowser: true
+			dangerouslyAllowBrowser: true,
 		});
 	}
 
@@ -26,8 +25,8 @@ export class OpenAIClient {
 			stop,
 			stream,
 			temperature,
-			user
-		}: ChatFrontMatter
+			user,
+		}: ChatFrontMatter,
 	) {
 		return this.client.chat.completions.create({
 			messages,
