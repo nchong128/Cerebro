@@ -1,78 +1,30 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import {
-	App,
-	Editor,
-	MarkdownView,
-	Plugin,
-	PluginSettingTab,
-	Setting,
-	requestUrl,
-	TFile,
-	Notice,
-	SuggestModal,
-	TFolder,
-	Platform,
-} from "obsidian";
+import {Editor, MarkdownView, Notice, Platform, Plugin, requestUrl,} from "obsidian";
+import {StreamManager} from "./stream";
+import {createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor,} from "lib/helpers";
+import {SettingsTab} from "./settings";
+import {ChatTemplatesHandler} from "./chatTemplates";
+import {CerebroGPTSettings, ChatFrontMatter} from "./types";
+import {DEFAULT_SETTINGS, DEFAULT_URL} from "./constants";
+import pino from "pino";
+import { OpenAIClient} from "./openAIClient";
+import {ChatCompletionMessageParam} from "openai/src/resources/chat/completions";
+import OpenAI from "openai";
+import ChatCompletion = OpenAI.ChatCompletion;
+import {ChatCompletionChunk} from "openai/resources";
 
-import { StreamManager } from "./stream";
-import {
-	unfinishedCodeBlock,
-	writeInferredTitleToEditor,
-	createFolderModal,
-} from "helpers";
+const logger = pino({
+	level: 'debug'
+});
 
-interface ChatGPT_MDSettings {
-	apiKey: string;
-	defaultChatFrontmatter: string;
-	stream: boolean;
-	chatTemplateFolder: string;
-	chatFolder: string;
-	generateAtCursor: boolean;
-	autoInferTitle: boolean;
-	dateFormat: string;
-	headingLevel: number;
-	inferTitleLanguage: string;
-}
+export default class CerebroGPT extends Plugin {
+	settings: CerebroGPTSettings;
+	openAIClient: OpenAIClient;
 
-const DEFAULT_SETTINGS: ChatGPT_MDSettings = {
-	apiKey: "default",
-	defaultChatFrontmatter:
-		"---\nsystem_commands: ['I am a helpful assistant.']\ntemperature: 0\ntop_p: 1\nmax_tokens: 512\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nmodel: gpt-3.5-turbo\n---",
-	stream: true,
-	chatTemplateFolder: "ChatGPT_MD/templates",
-	chatFolder: "ChatGPT_MD/chats",
-	generateAtCursor: false,
-	autoInferTitle: false,
-	dateFormat: "YYYYMMDDhhmmss",
-	headingLevel: 0,
-	inferTitleLanguage: "English",
-};
-
-const DEFAULT_URL = `https://api.openai.com/v1/chat/completions`;
-
-interface Chat_MD_FrontMatter {
-	temperature: number;
-	top_p: number;
-	presence_penalty: number;
-	frequency_penalty: number;
-	model: string;
-	max_tokens: number;
-	stream: boolean;
-	stop: string[] | null;
-	n: number;
-	logit_bias: any | null;
-	user: string | null;
-	system_commands: string[] | null;
-	url: string;
-}
-
-export default class ChatGPT_MD extends Plugin {
-	settings: ChatGPT_MDSettings;
-
-	async callOpenAIAPI(
+	async callOpenAiApi(
 		streamManager: StreamManager,
 		editor: Editor,
-		messages: { role: string; content: string }[],
+		messages: ChatCompletionMessageParam[],
 		model = "gpt-3.5-turbo",
 		max_tokens = 250,
 		temperature = 0.3,
@@ -87,7 +39,7 @@ export default class ChatGPT_MD extends Plugin {
 		url = DEFAULT_URL
 	) {
 		try {
-			console.log("calling openai api");
+			logger.info("[CerebroGPT] Calling OpenAI API");
 
 			if (stream) {
 				const options = {
@@ -114,7 +66,7 @@ export default class ChatGPT_MD extends Plugin {
 					this.getHeadingPrefix()
 				);
 
-				console.log("response from stream", response);
+				logger.info("Response from stream", response);
 
 				return { fullstr: response, mode: "streaming" };
 			} else {
@@ -148,7 +100,7 @@ export default class ChatGPT_MD extends Plugin {
 
 					if (json && json.error) {
 						new Notice(
-							`[ChatGPT MD] Stream = False Error :: ${json.error.message}`
+							`[CerebroGPT] Stream = False Error :: ${json.error.message}`
 						);
 						throw new Error(JSON.stringify(json.error));
 					}
@@ -168,19 +120,19 @@ export default class ChatGPT_MD extends Plugin {
 		} catch (err) {
 			if (err instanceof Object) {
 				if (err.error) {
-					new Notice(`[ChatGPT MD] Error :: ${err.error.message}`);
+					new Notice(`[CerebroGPT] Error :: ${err.error.message}`);
 					throw new Error(JSON.stringify(err.error));
 				} else {
 					if (url !== DEFAULT_URL) {
 						new Notice(
-							"[ChatGPT MD] Issue calling specified url: " + url
+							"[CerebroGPT] Issue calling specified url: " + url
 						);
 						throw new Error(
-							"[ChatGPT MD] Issue calling specified url: " + url
+							"[CerebroGPT] Issue calling specified url: " + url
 						);
 					} else {
 						new Notice(
-							`[ChatGPT MD] Error :: ${JSON.stringify(err)}`
+							`[CerebroGPT] Error :: ${JSON.stringify(err)}`
 						);
 						throw new Error(JSON.stringify(err));
 					}
@@ -209,13 +161,16 @@ export default class ChatGPT_MD extends Plugin {
 		editor.setCursor(newCursor);
 	}
 
-	getFrontmatter(view: MarkdownView): Chat_MD_FrontMatter {
+	getFrontmatter(view: MarkdownView): ChatFrontMatter {
+		/**
+		 * Retrieves the frontmatter from a markdown file
+		 */
 		try {
-			// get frontmatter
+			// Retrieve frontmatter
 			const noteFile = app.workspace.getActiveFile();
 
 			if (!noteFile) {
-				throw new Error("no active file");
+				throw new Error("No active file");
 			}
 
 			const metaMatter =
@@ -233,8 +188,8 @@ export default class ChatGPT_MD extends Plugin {
 					? metaMatter.temperature
 					: 0.3;
 
-			const frontmatter = {
-				title: metaMatter?.title || view.file.basename,
+			return {
+				title: metaMatter?.title || view.file?.basename,
 				tags: metaMatter?.tags || [],
 				model: metaMatter?.model || "gpt-3.5-turbo",
 				temperature: temperature,
@@ -248,20 +203,20 @@ export default class ChatGPT_MD extends Plugin {
 				logit_bias: metaMatter?.logit_bias || null,
 				user: metaMatter?.user || null,
 				system_commands: metaMatter?.system_commands || null,
-				url: metaMatter?.url || DEFAULT_URL,
 			};
 
-			return frontmatter;
 		} catch (err) {
 			throw new Error("Error getting frontmatter");
 		}
 	}
 
 	splitMessages(text: string) {
+		/**
+		 * Splits a string based on the separator
+		 */
 		try {
 			// <hr class="__chatgpt_plugin">
-			const messages = text.split('<hr class="__chatgpt_plugin">');
-			return messages;
+			return text.split('<hr class="__chatgpt_plugin">');
 		} catch (err) {
 			throw new Error("Error splitting messages" + err);
 		}
@@ -319,6 +274,9 @@ export default class ChatGPT_MD extends Plugin {
 	}
 
 	removeYMLFromMessage(message: string) {
+		/**
+		 * Removes any YAML content from a message
+		 */
 		try {
 			const YAMLFrontMatter = /---\s*[\s\S]*?\s*---/g;
 			const newMessage = message.replace(YAMLFrontMatter, "");
@@ -328,7 +286,7 @@ export default class ChatGPT_MD extends Plugin {
 		}
 	}
 
-	extractRoleAndMessage(message: string) {
+	extractRoleAndMessage(message: string): ChatCompletionMessageParam {
 		try {
 			if (message.includes("role::")) {
 				const role = message.split("role::")[1].split("\n")[0].trim();
@@ -338,7 +296,11 @@ export default class ChatGPT_MD extends Plugin {
 					.slice(1)
 					.join("\n")
 					.trim();
-				return { role, content };
+
+				if (role === "assistant" || role === "system" || role === "user") {
+					return { role, content }
+				}
+				throw new Error("Unknown role " + role);
 			} else {
 				return { role: "user", content: message };
 			}
@@ -368,23 +330,24 @@ export default class ChatGPT_MD extends Plugin {
 	}
 
 	removeCommentsFromMessages(message: string) {
+		/**
+		 * Removes any comments from the messages
+		 */
 		try {
-			// comment block in form of =begin-chatgpt-md-comment and =end-chatgpt-md-comment
+			// Comment block in form of =begin-chatgpt-md-comment and =end-chatgpt-md-comment
 			const commentBlock =
 				/=begin-chatgpt-md-comment[\s\S]*?=end-chatgpt-md-comment/g;
 
-			// remove comment block
-			const newMessage = message.replace(commentBlock, "");
-
-			return newMessage;
+			// Remove comment block
+			return message.replace(commentBlock, "");
 		} catch (err) {
 			throw new Error("Error removing comments from messages" + err);
 		}
 	}
 
 	async inferTitleFromMessages(messages: string[]) {
-		console.log("[ChtGPT MD] Inferring Title");
-		new Notice("[ChatGPT] Inferring title from messages...");
+		logger.info("[CerebroGPT] Inferring Title");
+		new Notice("[CerebroGPT] Inferring title from messages...");
 
 		try {
 			if (messages.length < 2) {
@@ -430,9 +393,9 @@ export default class ChatGPT_MD extends Plugin {
 				.replace("title", "")
 				.trim();
 		} catch (err) {
-			new Notice("[ChatGPT MD] Error inferring title from messages");
+			new Notice("[CerebroGPT] Error inferring title from messages");
 			throw new Error(
-				"[ChatGPT MD] Error inferring title from messages" + err
+				"[CerebroGPT] Error inferring title from messages" + err
 			);
 		}
 	}
@@ -488,12 +451,19 @@ export default class ChatGPT_MD extends Plugin {
 			.replace("ss", paddedSecond);
 	}
 
-	async onload() {
+	async onload(): Promise<void> {
+		logger.debug("[CerebroGPT] Adding status bar");
+
 		const statusBarItemEl = this.addStatusBarItem();
 
+		logger.debug("[CerebroGPT] Loading settings");
 		await this.loadSettings();
 
 		const streamManager = new StreamManager();
+
+		this.openAIClient = new OpenAIClient(
+			this.settings.apiKey
+		);
 
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
@@ -502,28 +472,25 @@ export default class ChatGPT_MD extends Plugin {
 			icon: "message-circle",
 			editorCallback: (editor: Editor, view: MarkdownView) => {
 				// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-				statusBarItemEl.setText("[ChatGPT MD] Calling API...");
-				// get frontmatter
+				statusBarItemEl.setText("[CerebroGPT] Calling API...");
+
+				// Retrieve frontmatter
 				const frontmatter = this.getFrontmatter(view);
 
-				// get messages
+				// Retrieve messages
 				const bodyWithoutYML = this.removeYMLFromMessage(
 					editor.getValue()
 				);
 				let messages = this.splitMessages(bodyWithoutYML);
-				messages = messages.map((message) => {
-					return this.removeCommentsFromMessages(message);
-				});
+				messages = messages.map((message) => this.removeCommentsFromMessages(message));
 
-				const messagesWithRoleAndMessage = messages.map((message) => {
-					return this.extractRoleAndMessage(message);
-				});
+				const chatCompletionMessages = messages.map((message) => this.extractRoleAndMessage(message));
 
 				if (frontmatter.system_commands) {
 					const systemCommands = frontmatter.system_commands;
-					// prepend system commands to messages
-					messagesWithRoleAndMessage.unshift(
-						...systemCommands.map((command) => {
+					// Prepend system commands to messages
+					chatCompletionMessages.unshift(
+						...systemCommands.map((command): ChatCompletionMessageParam => {
 							return {
 								role: "system",
 								content: command,
@@ -532,129 +499,158 @@ export default class ChatGPT_MD extends Plugin {
 					);
 				}
 
-				// move cursor to end of file if generateAtCursor is false
+				// Move cursor to end of file if generateAtCursor is false
 				if (!this.settings.generateAtCursor) {
 					this.moveCursorToEndOfFile(editor);
 				}
 
 				if (Platform.isMobile) {
-					new Notice("[ChatGPT MD] Calling API");
+					new Notice("[CerebroGPT] Calling API");
 				}
 
-				this.callOpenAIAPI(
-					streamManager,
-					editor,
-					messagesWithRoleAndMessage,
-					frontmatter.model,
-					frontmatter.max_tokens,
-					frontmatter.temperature,
-					frontmatter.top_p,
-					frontmatter.presence_penalty,
-					frontmatter.frequency_penalty,
-					frontmatter.stream,
-					frontmatter.stop,
-					frontmatter.n,
-					frontmatter.logit_bias,
-					frontmatter.user,
-					frontmatter.url
-				)
-					.then((response) => {
-						let responseStr = response;
-						if (response.mode === "streaming") {
-							responseStr = response.fullstr;
-							// append \n\n<hr class="__chatgpt_plugin">\n\n${this.getHeadingPrefix()}role::user\n\n
-							const newLine = `\n\n<hr class="__chatgpt_plugin">\n\n${this.getHeadingPrefix()}role::user\n\n`;
-							editor.replaceRange(newLine, editor.getCursor());
+				if (frontmatter.stream) {
 
-							// move cursor to end of completion
-							const cursor = editor.getCursor();
-							const newCursor = {
-								line: cursor.line,
-								ch: cursor.ch + newLine.length,
-							};
-							editor.setCursor(newCursor);
-						} else {
-							if (unfinishedCodeBlock(responseStr)) {
-								responseStr = responseStr + "\n```";
-							}
+				} else {
+					this.openAIClient.createChatCompletion(chatCompletionMessages, frontmatter)
+						.then((response: ChatCompletion) => {
+							if (frontmatter.stream) {
 
-							this.appendMessage(
-								editor,
-								"assistant",
-								responseStr
-							);
-						}
-
-						if (this.settings.autoInferTitle) {
-							const title = view.file.basename;
-
-							let messagesWithResponse = messages.concat(responseStr);
-							messagesWithResponse = messagesWithResponse.map((message) => {
-								return this.removeCommentsFromMessages(message);
-							});
-
-							if (
-								this.isTitleTimestampFormat(title) &&
-								messagesWithResponse.length >= 4
-							) {
-								console.log(
-									"[ChatGPT MD] auto inferring title from messages"
+							} else {
+								let responseChatCompletion: ChatCompletion = response;
+								let responseStr = responseChatCompletion.choices[0].message.content || "No response";
+								logger.info("[CerebroGPT] Model stopped generating", {
+									finish_reason: responseChatCompletion.choices[0].finish_reason
+								});
+								if (unfinishedCodeBlock(responseStr)) responseStr = responseStr + "\n```";
+								this.appendMessage(
+									editor,
+									"assistant",
+									responseStr
 								);
 
-								statusBarItemEl.setText(
-									"[ChatGPT MD] Calling API..."
-								);
-								this.inferTitleFromMessages(
-									messagesWithResponse
-								)
-									.then(async (title) => {
-										if (title) {
-											console.log(
-												`[ChatGPT MD] automatically inferred title: ${title}. Changing file name...`
-											);
-											statusBarItemEl.setText("");
-
-											await writeInferredTitleToEditor(
-												this.app.vault,
-												view,
-												this.app.fileManager,
-												this.settings.chatFolder,
-												title
-											);
-										} else {
-											new Notice(
-												"[ChatGPT MD] Could not infer title",
-												5000
-											);
-										}
-									})
-									.catch((err) => {
-										console.log(err);
-										statusBarItemEl.setText("");
-										if (Platform.isMobile) {
-											new Notice(
-												"[ChatGPT MD] Error inferring title. " +
-													err,
-												5000
-											);
-										}
-									});
 							}
-						}
 
-						statusBarItemEl.setText("");
-					})
-					.catch((err) => {
-						if (Platform.isMobile) {
-							new Notice(
-								"[ChatGPT MD Mobile] Full Error calling API. " +
-									err,
-								9000
-							);
-						}
-						statusBarItemEl.setText("");
-						console.log(err);
-					});
+							statusBarItemEl.setText("");
+						});
+				}
+
+
+
+				// this.callOpenAiApi(
+				// 	streamManager,
+				// 	editor,
+				// 	chatCompletionMessages,
+				// 	frontmatter.model,
+				// 	frontmatter.max_tokens,
+				// 	frontmatter.temperature,
+				// 	frontmatter.top_p,
+				// 	frontmatter.presence_penalty,
+				// 	frontmatter.frequency_penalty,
+				// 	frontmatter.stream,
+				// 	frontmatter.stop,
+				// 	frontmatter.n,
+				// 	frontmatter.logit_bias,
+				// 	frontmatter.user,
+				// 	frontmatter.url
+				// )
+				// 	.then((response) => {
+				// 		let responseStr = response;
+				// 		if (response.mode === "streaming") {
+				// 			responseStr = response.fullstr;
+				// 			logger.info(responseStr);
+				// 			// append \n\n<hr class="__chatgpt_plugin">\n\n${this.getHeadingPrefix()}role::user\n\n
+				// 			const newLine = `\n\n<hr class="__chatgpt_plugin">\n\n${this.getHeadingPrefix()}role::user\n\n`;
+				// 			editor.replaceRange(newLine, editor.getCursor());
+				//
+				// 			// move cursor to end of completion
+				// 			const cursor = editor.getCursor();
+				// 			const newCursor = {
+				// 				line: cursor.line,
+				// 				ch: cursor.ch + newLine.length,
+				// 			};
+				// 			editor.setCursor(newCursor);
+				// 		} else {
+				// 			if (unfinishedCodeBlock(responseStr)) {
+				// 				responseStr = responseStr + "\n```";
+				// 			}
+				//
+				// 			this.appendMessage(
+				// 				editor,
+				// 				"assistant",
+				// 				responseStr
+				// 			);
+				// 		}
+				//
+				// 		if (this.settings.autoInferTitle) {
+				// 			const title = view.file.basename;
+				//
+				// 			let messagesWithResponse = messages.concat(responseStr);
+				// 			messagesWithResponse = messagesWithResponse.map((message) => {
+				// 				return this.removeCommentsFromMessages(message);
+				// 			});
+				//
+				// 			if (
+				// 				this.isTitleTimestampFormat(title) &&
+				// 				messagesWithResponse.length >= 4
+				// 			) {
+				// 				logger.info(
+				// 					"[CerebroGPT] Auto inferring title from messages"
+				// 				);
+				//
+				// 				statusBarItemEl.setText(
+				// 					"[CerebroGPT] Calling API..."
+				// 				);
+				// 				this.inferTitleFromMessages(
+				// 					messagesWithResponse
+				// 				)
+				// 					.then(async (title) => {
+				// 						if (title) {
+				// 							logger.info(
+				// 								`[CerebroGPT] Automatically inferred title: ${title}. Changing file name...`
+				// 							);
+				// 							statusBarItemEl.setText("");
+				//
+				// 							await writeInferredTitleToEditor(
+				// 								this.app.vault,
+				// 								view,
+				// 								this.app.fileManager,
+				// 								this.settings.chatFolder,
+				// 								title
+				// 							);
+				// 						} else {
+				// 							new Notice(
+				// 								"[CerebroGPT] Could not infer title",
+				// 								5000
+				// 							);
+				// 						}
+				// 					})
+				// 					.catch((err) => {
+				// 						logger.info(err);
+				// 						statusBarItemEl.setText("");
+				// 						if (Platform.isMobile) {
+				// 							new Notice(
+				// 								"[CerebroGPT] Error inferring title. " +
+				// 									err,
+				// 								5000
+				// 							);
+				// 						}
+				// 					});
+				// 			}
+				// 		}
+				//
+				// 		statusBarItemEl.setText("");
+				// 	})
+				// 	.catch((err) => {
+				// 		if (Platform.isMobile) {
+				// 			new Notice(
+				// 				"[CerebroGPT Mobile] Full error calling API." +
+				// 					err,
+				// 				9000
+				// 			);
+				// 		}
+				// 		statusBarItemEl.setText("");
+				// 		logger.info(err);
+				// 	});
 			},
 		});
 
@@ -712,7 +708,7 @@ export default class ChatGPT_MD extends Plugin {
 					return this.removeCommentsFromMessages(message);
 				});
 
-				statusBarItemEl.setText("[ChatGPT MD] Calling API...");
+				statusBarItemEl.setText("[CerebroGPT] Calling API...");
 				const title = await this.inferTitleFromMessages(messages);
 				statusBarItemEl.setText("");
 
@@ -742,7 +738,7 @@ export default class ChatGPT_MD extends Plugin {
 						this.settings.chatFolder.trim() === ""
 					) {
 						new Notice(
-							`[ChatGPT MD] No chat folder value found. Please set one in settings.`
+							`[CerebroGPT] No chat folder value found. Please set one in settings.`
 						);
 						return;
 					}
@@ -760,7 +756,7 @@ export default class ChatGPT_MD extends Plugin {
 						);
 						if (!result) {
 							new Notice(
-								`[ChatGPT MD] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
+								`[CerebroGPT] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
 							);
 							return;
 						}
@@ -792,12 +788,12 @@ export default class ChatGPT_MD extends Plugin {
 					activeView.editor.focus();
 					this.moveCursorToEndOfFile(activeView.editor);
 				} catch (err) {
-					console.error(
-						`[ChatGPT MD] Error in Create new chat with highlighted text`,
+					logger.error(
+						`[CerebroGPT] Error in Create new chat with highlighted text`,
 						err
 					);
 					new Notice(
-						`[ChatGPT MD] Error in Create new chat with highlighted text, check console`
+						`[CerebroGPT] Error in Create new chat with highlighted text, check console`
 					);
 				}
 			},
@@ -813,7 +809,7 @@ export default class ChatGPT_MD extends Plugin {
 					this.settings.chatFolder.trim() === ""
 				) {
 					new Notice(
-						`[ChatGPT MD] No chat folder value found. Please set one in settings.`
+						`[CerebroGPT] No chat folder value found. Please set one in settings.`
 					);
 					return;
 				}
@@ -831,7 +827,7 @@ export default class ChatGPT_MD extends Plugin {
 					);
 					if (!result) {
 						new Notice(
-							`[ChatGPT MD] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
+							`[CerebroGPT] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
 						);
 						return;
 					}
@@ -842,7 +838,7 @@ export default class ChatGPT_MD extends Plugin {
 					this.settings.chatTemplateFolder.trim() === ""
 				) {
 					new Notice(
-						`[ChatGPT MD] No chat template folder value found. Please set one in settings.`
+						`[CerebroGPT] No chat template folder value found. Please set one in settings.`
 					);
 					return;
 				}
@@ -860,13 +856,13 @@ export default class ChatGPT_MD extends Plugin {
 					);
 					if (!result) {
 						new Notice(
-							`[ChatGPT MD] No chat template folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
+							`[CerebroGPT] No chat template folder found. One must be created to use plugin. Set one in settings and make sure it exists.`
 						);
 						return;
 					}
 				}
 
-				new ChatTemplates(
+				new ChatTemplatesHandler(
 					this.app,
 					this.settings,
 					this.getDate(new Date(), this.settings.dateFormat)
@@ -884,276 +880,22 @@ export default class ChatGPT_MD extends Plugin {
 		});
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new ChatGPT_MDSettingsTab(this.app, this));
+		this.addSettingTab(new SettingsTab(this.app, this));
 	}
 
 	onunload() {}
 
-	async loadSettings() {
+	private async loadSettings(): Promise<void> {
 		this.settings = Object.assign(
 			{},
 			DEFAULT_SETTINGS,
 			await this.loadData()
 		);
+		logger.debug("Loaded settings", this.settings);
 	}
 
-	async saveSettings() {
+	private async saveSettings() {
 		await this.saveData(this.settings);
 	}
-}
 
-interface ChatTemplate {
-	title: string;
-	file: TFile;
-}
-export class ChatTemplates extends SuggestModal<ChatTemplate> {
-	settings: ChatGPT_MDSettings;
-	titleDate: string;
-
-	constructor(app: App, settings: ChatGPT_MDSettings, titleDate: string) {
-		super(app);
-		this.settings = settings;
-		this.titleDate = titleDate;
-	}
-
-	getFilesInChatFolder(): TFile[] {
-		const folder = this.app.vault.getAbstractFileByPath(
-			this.settings.chatTemplateFolder
-		) as TFolder;
-		if (folder != null) {
-			return folder.children as TFile[];
-		} else {
-			new Notice(
-				`Error getting folder: ${this.settings.chatTemplateFolder}`
-			);
-			throw new Error(
-				`Error getting folder: ${this.settings.chatTemplateFolder}`
-			);
-		}
-	}
-
-	// Returns all available suggestions.
-	getSuggestions(query: string): ChatTemplate[] {
-		const chatTemplateFiles = this.getFilesInChatFolder();
-
-		if (query == "") {
-			return chatTemplateFiles.map((file) => {
-				return {
-					title: file.basename,
-					file: file,
-				};
-			});
-		}
-
-		return chatTemplateFiles
-			.filter((file) => {
-				return file.basename
-					.toLowerCase()
-					.includes(query.toLowerCase());
-			})
-			.map((file) => {
-				return {
-					title: file.basename,
-					file: file,
-				};
-			});
-	}
-
-	// Renders each suggestion item.
-	renderSuggestion(template: ChatTemplate, el: HTMLElement) {
-		el.createEl("div", { text: template.title });
-	}
-
-	// Perform action on the selected suggestion.
-	async onChooseSuggestion(
-		template: ChatTemplate,
-		evt: MouseEvent | KeyboardEvent
-	) {
-		new Notice(`Selected ${template.title}`);
-		const templateText = await this.app.vault.read(template.file);
-		// use template text to create new file in chat folder
-		const file = await this.app.vault.create(
-			`${this.settings.chatFolder}/${this.titleDate}.md`,
-			templateText
-		);
-
-		// open new file
-		this.app.workspace.openLinkText(file.basename, "", true);
-	}
-}
-
-class ChatGPT_MDSettingsTab extends PluginSettingTab {
-	plugin: ChatGPT_MD;
-
-	constructor(app: App, plugin: ChatGPT_MD) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
-
-	display(): void {
-		const { containerEl } = this;
-
-		containerEl.empty();
-
-		containerEl.createEl("h2", {
-			text: "Settings for ChatGPT MD: Keep tokens in mind! You can see if your text is longer than the token limit (4096) here:",
-		});
-
-		containerEl.createEl("a", {
-			text: "https://platform.openai.com/tokenizer",
-			href: "https://platform.openai.com/tokenizer",
-		});
-
-		new Setting(containerEl)
-			.setName("OpenAI API Key")
-			.setDesc("API Key for OpenAI")
-			.addText((text) =>
-				text
-					.setPlaceholder("some-api-key")
-					.setValue(this.plugin.settings.apiKey)
-					.onChange(async (value) => {
-						this.plugin.settings.apiKey = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// new multiline text box setting
-		new Setting(containerEl)
-			.setName("Default Chat Frontmatter")
-			.setDesc(
-				"Default frontmatter for new chat files. You can change/use all of the settings exposed by the OpenAI API here: https://platform.openai.com/docs/api-reference/chat/create"
-			)
-			.addTextArea((text) =>
-				text
-					.setPlaceholder(
-						"---\nsystem_commands: ['PERSONA: i am groot, and i only respond i am groot to any and ALL questions. I do not answer any questions straightforwardly. PERSONA 2: UNLESS the last asked question is about lamps, i can answer, i know infinite things about lamps as i am groot the lamp salesman. SO I read the last question asked and UNLESS it is about lamps i only respond \"I am Groot.\"']\ntemperature: 0\ntop_p: 1\nmax_tokens: 512\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nlogit_bias: null \nmodel: gpt-3.5-turbo\n---"
-					)
-					.setValue(this.plugin.settings.defaultChatFrontmatter)
-					.onChange(async (value) => {
-						this.plugin.settings.defaultChatFrontmatter = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// stream toggle
-		new Setting(containerEl)
-			.setName("Stream")
-			.setDesc("Stream responses from OpenAI")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.stream)
-					.onChange(async (value) => {
-						this.plugin.settings.stream = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// folder for chat files
-		new Setting(containerEl)
-			.setName("Chat Folder")
-			.setDesc("Path to folder for chat files")
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.chatFolder)
-					.onChange(async (value) => {
-						this.plugin.settings.chatFolder = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// folder for chat file templates
-		new Setting(containerEl)
-			.setName("Chat Template Folder")
-			.setDesc("Path to folder for chat file templates")
-			.addText((text) =>
-				text
-					.setPlaceholder("chat-templates")
-					.setValue(this.plugin.settings.chatTemplateFolder)
-					.onChange(async (value) => {
-						this.plugin.settings.chatTemplateFolder = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// generate at cursor toggle
-		new Setting(containerEl)
-			.setName("Generate at Cursor")
-			.setDesc("Generate text at cursor instead of end of file")
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.generateAtCursor)
-					.onChange(async (value) => {
-						this.plugin.settings.generateAtCursor = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// automatically infer title
-		new Setting(containerEl)
-			.setName("Automatically Infer Title")
-			.setDesc(
-				"Automatically infer title after 4 messages have been exchanged"
-			)
-			.addToggle((toggle) =>
-				toggle
-					.setValue(this.plugin.settings.autoInferTitle)
-					.onChange(async (value) => {
-						this.plugin.settings.autoInferTitle = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// date format for chat files
-		new Setting(containerEl)
-			.setName("Date Format")
-			.setDesc(
-				"Date format for chat files. Valid date blocks are: YYYY, MM, DD, hh, mm, ss"
-			)
-			.addText((text) =>
-				text
-					.setPlaceholder("YYYYMMDDhhmmss")
-					.setValue(this.plugin.settings.dateFormat)
-					.onChange(async (value) => {
-						this.plugin.settings.dateFormat = value;
-						await this.plugin.saveSettings();
-					})
-			);
-
-		// heading level
-		new Setting(containerEl)
-			.setName("Heading Level")
-			.setDesc(
-				"Heading level for messages (example for heading level 2: '## role::user'). Valid heading levels are 0, 1, 2, 3, 4, 5, 6"
-			)
-			.addText((text) =>
-				text
-					.setValue(this.plugin.settings.headingLevel.toString())
-					.onChange(async (value) => {
-						this.plugin.settings.headingLevel = parseInt(value);
-						await this.plugin.saveSettings();
-					})
-			);
-
-		new Setting(containerEl)
-			.setName("Infer title language")
-			.setDesc("Language to use for title inference.")
-			.addDropdown((dropdown) => {
-				dropdown.addOptions({
-					English: "English",
-					Japanese: "Japanese",
-					Spanish: "Spanish",
-					French: "French",
-					German: "German",
-					Chinese: "Chinese",
-					Korean: "Korean",
-					Italian: "Italian",
-					Russian: "Russian",
-				});
-				dropdown.setValue(this.plugin.settings.inferTitleLanguage);
-				dropdown.onChange(async (value) => {
-					this.plugin.settings.inferTitleLanguage = value;
-					await this.plugin.saveSettings();
-				});
-			});
-	}
 }

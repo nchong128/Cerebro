@@ -1,7 +1,7 @@
 {
-	"name": "chatgpt-md",
-	"version": "1.5.0",
-	"description": "A (nearly) seamless integration of ChatGPT into Obsidian.",
+	"name": "cerebro-gpt",
+	"version": "1.0.0",
+	"description": "Your notes brought to life.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
@@ -22,6 +22,8 @@
 		"typescript": "4.7.4"
 	},
 	"dependencies": {
+		"openai": "^4.27.0",
+		"pino": "^8.18.0",
 		"sse": "github:mpetazzoni/sse.js"
 	}
 }

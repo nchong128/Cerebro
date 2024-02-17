@@ -1,8 +1,8 @@
 {
-	"id": "chatgpt-md-custom",
-	"name": "Nick's ChatGPT MD",
-	"version": "1.5.0",
-	"minAppVersion": "0.15.0",
-	"description": "A (nearly) seamless integration of ChatGPT into Obsidian.",
+	"id": "cerebro-gpt",
+	"name": "CerebroGPT",
+	"version": "1.0.0",
+	"minAppVersion": "0.0.1",
+	"description": "Your notes brought to life.",
 	"isDesktopOnly": false
 }

@@ -7,6 +7,12 @@ import {
 	App,
 	Setting,
 } from "obsidian";
+import pino from "pino";
+
+const logger = pino({
+	level: 'info'
+});
+
 
 // check for unclosed code block in MD (three backticks), string should contain three backticks in a row
 export const unfinishedCodeBlock = (txt: string) => {
@@ -16,7 +22,7 @@ export const unfinishedCodeBlock = (txt: string) => {
 	}
 
 	if (matcher.length % 2 !== 0)
-		console.log("[ChatGPT MD] unclosed code block detected");
+		logger.info("[CerebroGPT] unclosed code block detected");
 
 	return matcher.length % 2 !== 0;
 };
@@ -45,8 +51,8 @@ export const writeInferredTitleToEditor = async (
 
 		fileManager.renameFile(file, newFileName);
 	} catch (err) {
-		new Notice("[ChatGPT MD] Error writing inferred title to editor");
-		console.log("[ChatGPT MD] Error writing inferred title to editor", err);
+		new Notice("[CerebroGPT] Error writing inferred title to editor");
+		logger.info("[CerebroGPT] Error writing inferred title to editor", err);
 		throw err;
 	}
 };
@@ -67,10 +73,10 @@ export const createFolderModal = async (
 	const result = await folderCreationModal.waitForModalValue();
 
 	if (result) {
-		console.log("[ChatGPT MD] Creating folder");
+		logger.info("[CerebroGPT] Creating folder");
         await vault.createFolder(folderPath);
 	} else {
-		console.log("[ChatGPT MD] Not creating folder");
+		logger.info("[CerebroGPT] Not creating folder");
 	}
 
     return result;
@@ -102,7 +108,7 @@ class FolderCreationModal extends Modal {
 		const { contentEl } = this;
 
 		contentEl.createEl("h2", {
-			text: `[ChatGPT MD] No ${this.folderName} folder found.`,
+			text: `[CerebroGPT] No ${this.folderName} folder found.`,
 		});
 
 		contentEl.createEl("p", {

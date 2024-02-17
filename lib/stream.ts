@@ -1,6 +1,12 @@
 import { Editor, Notice, Platform } from "obsidian";
 import { SSE } from "sse";
-import { unfinishedCodeBlock } from "helpers";
+import { unfinishedCodeBlock } from "lib/helpers";
+import pino from "pino";
+
+const logger = pino({
+	level: 'info'
+});
+
 
 export interface OpenAIStreamPayload {
 	model: string;
@@ -25,13 +31,13 @@ export class StreamManager {
 
 	stopStreaming = () => {
 		if (Platform.isMobile) {
-			new Notice("[ChatGPT MD] Mobile not supported.");
+			new Notice("[CerebroGPT] Mobile not supported.");
 			return;
 		}
 		if (this.sse) {
 			this.manualClose = true;
 			this.sse.close();
-			console.log("[ChatGPT MD] SSE manually closed");
+			logger.info("[CerebroGPT] SSE manually closed.");
 			this.sse = null;
 		}
 	};
@@ -46,7 +52,7 @@ export class StreamManager {
 	) => {
 		return new Promise((resolve, reject) => {
 			try {
-				console.log("[ChatGPT MD] streamSSE", options);
+				logger.info("[CerebroGPT] streamSSE", options);
 
 				const source = new SSE(url, {
 					headers: {
@@ -64,7 +70,7 @@ export class StreamManager {
 				let initialCursorPosLine = editor.getCursor().line;
 
 				source.addEventListener("open", (e: any) => {
-					console.log("[ChatGPT MD] SSE Opened");
+					logger.info("[CerebroGPT] SSE Opened");
 
 					const newLine = `\n\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::assistant\n\n`;
 					editor.replaceRange(newLine, editor.getCursor());
@@ -87,8 +93,8 @@ export class StreamManager {
 						try {
 							payload = JSON.parse(e.data);
 						} catch (err) {
-							console.log("Error parsing JSON", err);
-							console.log(e.data);
+							logger.info("Error parsing JSON", err);
+							logger.info(e.data);
 							// e.data has corrupted json b/c of some reason, it looks like this:
 							//"{\"id\":\"chatcmpl-8npFjqqyFoGXNa5oGgl3WuzPQB5ka\",\"object\":\"chat.completion.chunk\",\"created\":1706885779,\"model\":\"gpt-4-0613\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"logprobs\":null,\"finish_reason\":null}]}
 							// {\"id\":\"chatcmpl-8npFjqqyFoGXNa5oGgl3WuzPQB5ka\",\"object\":\"chat.completion.chunk\",\"created\":1706885779,\"model\":\"gpt-4-0613\",\"system_fingerprint\":null,\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"},\"logprobs\":null,\"finish_reason\":null}]}"
@@ -175,7 +181,7 @@ export class StreamManager {
 						// editor.setCursor(newCursor);
 					} else {
 						source.close();
-						console.log("[ChatGPT MD] SSE Closed");
+						logger.info("[CerebroGPT] SSE Closed");
 
 						if (unfinishedCodeBlock(txt)) {
 							txt += "\n```";
@@ -207,7 +213,7 @@ export class StreamManager {
 							});
 						} else {
 							new Notice(
-								"[ChatGPT MD] Text pasted at cursor may leave artifacts. Please remove them manually. ChatGPT MD cannot safely remove text when pasting at cursor."
+								"[CerebroGPT] Text pasted at cursor may leave artifacts. Please remove them manually. CerebroGPT cannot safely remove text when pasting at cursor."
 							);
 						}
 
@@ -217,7 +223,7 @@ export class StreamManager {
 				});
 
 				source.addEventListener("abort", (e: any) => {
-					console.log("[ChatGPT MD] SSE Closed Event");
+					logger.info("[CerebroGPT] SSE Closed Event");
 
 					// if e was triggered by stopStreaming, then resolve
 					if (this.manualClose) {
@@ -227,24 +233,24 @@ export class StreamManager {
 
 				source.addEventListener("error", (e: any) => {
 					try {
-						console.log(
-							"[ChatGPT MD] SSE Error: ",
+						logger.info(
+							"[CerebroGPT] SSE Error: ",
 							JSON.parse(e.data)
 						);
 						source.close();
-						console.log("[ChatGPT MD] SSE Closed");
+						logger.info("[CerebroGPT] SSE Closed");
 						reject(JSON.parse(e.data));
 					} catch (err) {
-						console.log("[ChatGPT MD] Unknown Error: ", e);
+						logger.info("[CerebroGPT] Unknown Error: ", e);
 						source.close();
-						console.log("[ChatGPT MD] SSE Closed");
+						logger.info("[CerebroGPT] SSE Closed");
 						reject(e);
 					}
 				});
 
 				source.stream();
 			} catch (err) {
-				console.log("SSE Error", err);
+				logger.info("SSE Error", err);
 				reject(err);
 			}
 		});
