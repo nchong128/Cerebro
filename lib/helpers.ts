@@ -5,14 +5,16 @@ const logger = pino({
 	level: 'info',
 });
 
-// check for unclosed code block in MD (three backticks), string should contain three backticks in a row
 export const unfinishedCodeBlock = (txt: string) => {
+	/**
+	 * Check for unclosed code block in MD (three backticks), string should contain three backticks in a row
+	 */
 	const matcher = txt.match(/```/g);
 	if (!matcher) {
 		return false;
 	}
 
-	if (matcher.length % 2 !== 0) logger.info('[CerebroGPT] unclosed code block detected');
+	if (matcher.length % 2 !== 0) logger.info('[CerebroGPT] Unclosed code block detected');
 
 	return matcher.length % 2 !== 0;
 };

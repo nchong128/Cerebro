@@ -13,7 +13,6 @@ export const DEFAULT_SETTINGS: CerebroGPTSettings = {
 	stream: true,
 	chatTemplateFolder: 'CerebroGPT/templates',
 	chatFolder: 'CerebroGPT/chats',
-	generateAtCursor: false,
 	autoInferTitle: false,
 	dateFormat: 'YYYYMMDDhhmmss',
 	headingLevel: 0,

@@ -93,17 +93,6 @@ export class SettingsTab extends PluginSettingTab {
 					}),
 			);
 
-		// generate at cursor toggle
-		new Setting(containerEl)
-			.setName('Generate at Cursor')
-			.setDesc('Generate text at cursor instead of end of file')
-			.addToggle((toggle) =>
-				toggle.setValue(this.plugin.settings.generateAtCursor).onChange(async (value) => {
-					this.plugin.settings.generateAtCursor = value;
-					await this.plugin.saveSettings();
-				}),
-			);
-
 		// automatically infer title
 		new Setting(containerEl)
 			.setName('Automatically Infer Title')

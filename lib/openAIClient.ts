@@ -1,6 +1,17 @@
 import OpenAI from 'openai';
-import { ChatCompletionMessageParam } from 'openai/src/resources/chat/completions';
+import {
+	ChatCompletion,
+	ChatCompletionChunk,
+	ChatCompletionMessageParam,
+} from 'openai/src/resources/chat/completions';
 import { ChatFrontMatter } from './types';
+import pino from 'pino';
+import { APIPromise } from 'openai/core';
+import { Stream } from 'openai/src/streaming';
+
+const logger = pino({
+	level: 'info',
+});
 
 export class OpenAIClient {
 	private client: OpenAI;
