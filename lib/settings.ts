@@ -14,8 +14,11 @@ export class SettingsTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		containerEl.createEl('h2', {
-			text: 'Settings for CerebroGPT: Keep tokens in mind! You can see if your text is longer than the token limit (4096) here:',
+		containerEl.createEl('h1', {
+			text: 'CerebroGPT',
+		});
+		containerEl.createEl('h5', {
+			text: 'Keep tokens in mind! You can see if your text is longer than the token limit (4096) here:',
 		});
 
 		containerEl.createEl('a', {

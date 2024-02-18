@@ -5,13 +5,12 @@ import { createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor } fr
 import { SettingsTab } from './settings';
 import { ChatTemplatesHandler } from './chatTemplates';
 import { CerebroGPTSettings, ChatFrontMatter } from './types';
-import { DEFAULT_SETTINGS, DEFAULT_URL } from './constants';
+import { DEFAULT_SETTINGS, DEFAULT_URL, YAML_FRONTMATTER_REGEX } from './constants';
 import pino from 'pino';
 import { OpenAIClient } from './openAIClient';
 import { ChatCompletionMessageParam } from 'openai/src/resources/chat/completions';
 import OpenAI from 'openai';
 import ChatCompletion = OpenAI.ChatCompletion;
-import { ChatCompletionChunk } from 'openai/resources';
 
 const logger = pino({
 	level: 'debug',
@@ -208,9 +207,8 @@ export default class CerebroGPT extends Plugin {
 
 	clearConversationExceptFrontmatter(editor: Editor) {
 		try {
-			// get frontmatter
-			const YAMLFrontMatter = /---\s*[\s\S]*?\s*---/g;
-			const frontmatter = editor.getValue().match(YAMLFrontMatter);
+			// Retrieve frontmatter
+			const frontmatter = editor.getValue().match(YAML_FRONTMATTER_REGEX);
 
 			if (!frontmatter) {
 				throw new Error('no frontmatter found');
@@ -262,9 +260,7 @@ export default class CerebroGPT extends Plugin {
 		 * Removes any YAML content from a message
 		 */
 		try {
-			const YAMLFrontMatter = /---\s*[\s\S]*?\s*---/g;
-			const newMessage = message.replace(YAMLFrontMatter, '');
-			return newMessage;
+			return message.replace(YAML_FRONTMATTER_REGEX, '');
 		} catch (err) {
 			throw new Error('Error removing YML from message' + err);
 		}
@@ -313,8 +309,8 @@ export default class CerebroGPT extends Plugin {
 		 * Removes any comments from the messages
 		 */
 		try {
-			// Comment block in form of =begin-chatgpt-md-comment and =end-chatgpt-md-comment
-			const commentBlock = /=begin-chatgpt-md-comment[\s\S]*?=end-chatgpt-md-comment/g;
+			// Comment block in form of =begin-comment and =end-comment
+			const commentBlock = /=begin-comment[\s\S]*?=end-comment/g;
 
 			// Remove comment block
 			return message.replace(commentBlock, '');
@@ -633,12 +629,11 @@ export default class CerebroGPT extends Plugin {
 			name: 'Add comment block',
 			icon: 'comment',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				// add a comment block at cursor in format: =begin-chatgpt-md-comment and =end-chatgpt-md-comment
+				// add a comment block at cursor in format: =begin-comment and =end-comment
 				const cursor = editor.getCursor();
-				const line = cursor.line;
-				const ch = cursor.ch;
+				const { line, ch } = cursor;
 
-				const commentBlock = `=begin-chatgpt-md-comment\n\n=end-chatgpt-md-comment`;
+				const commentBlock = `=begin-comment\n\n=end-comment`;
 				editor.replaceRange(commentBlock, cursor);
 
 				// move cursor to middle of comment block
@@ -664,7 +659,6 @@ export default class CerebroGPT extends Plugin {
 			name: 'Infer title',
 			icon: 'subtitles',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				// get messages
 				const bodyWithoutYML = this.removeYMLFromMessage(editor.getValue());
 				let messages = this.splitMessages(bodyWithoutYML);
 				messages = messages.map((message) => {
@@ -755,7 +749,7 @@ export default class CerebroGPT extends Plugin {
 			id: 'choose-chat-template',
 			name: 'Create new chat from template',
 			icon: 'layout-template',
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
+			editorCallback: async (editor: Editor, view: MarkdownView): Promise<void> => {
 				if (!this.settings.chatFolder || this.settings.chatFolder.trim() === '') {
 					new Notice(
 						`[CerebroGPT] No chat folder value found. Please set one in settings.`,
@@ -829,7 +823,7 @@ export default class CerebroGPT extends Plugin {
 		logger.debug('Loaded settings', this.settings);
 	}
 
-	private async saveSettings() {
+	async saveSettings() {
 		await this.saveData(this.settings);
 	}
 }

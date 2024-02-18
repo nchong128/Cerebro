@@ -1,7 +1,6 @@
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/src/resources/chat/completions';
 import { ChatFrontMatter } from './types';
-import { APIPromise } from 'openai/core';
 
 export class OpenAIClient {
 	private client: OpenAI;

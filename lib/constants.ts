@@ -4,6 +4,8 @@ export const PLUGIN_NAME = 'CerebroGPT';
 
 export const DEFAULT_URL = `https://api.openai.com/v1/chat/completions`;
 
+export const YAML_FRONTMATTER_REGEX = /---\s*[\s\S]*?\s*---/g;
+
 export const DEFAULT_SETTINGS: CerebroGPTSettings = {
 	apiKey: 'default',
 	defaultChatFrontmatter:
