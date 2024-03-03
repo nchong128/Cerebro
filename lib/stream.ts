@@ -3,6 +3,7 @@ import { unfinishedCodeBlock } from 'lib/helpers';
 import pino from 'pino';
 import { ChatCompletionChunk } from 'openai/src/resources/chat/completions';
 import { Stream } from 'openai/src/streaming';
+import { text } from 'stream/consumers';
 
 const logger = pino({
 	level: 'info',
@@ -24,57 +25,67 @@ export class StreamManager {
 		editor: Editor,
 		position: EditorPosition,
 	): Promise<string> {
-		// Initial setup
-		let txt = '';
+		let fullResponse = '';
+
+		// Save initial cursor
 		const { ch: initialCh, line: initialLine } = position;
 
 		// Process through each text chunk and paste
 		for await (const chunk of chatCompletionStream) {
+			const chunkText = chunk.choices[0].delta.content;
+			// If text undefined, then do nothing
+			if (!chunkText) {
+				continue;
+			}
+
 			if (this.manualClose) {
 				logger.info('Stopping stream...');
-				return txt;
+				break;
 			}
-			if (chunk.choices[0].delta.content) {
-				const text = chunk.choices[0].delta.content;
 
-				// If text undefined, then do nothing
-				if (!text) {
-					continue;
-				}
+			// Add chunk of text
+			const cursor = editor.getCursor();
+			editor.replaceRange(chunkText, cursor);
 
-				const cursor = editor.getCursor();
+			fullResponse += chunkText;
 
-				editor.replaceRange(text, cursor);
+			const newCursor = {
+				line: cursor.line,
+				ch: cursor.ch + chunkText.length,
+			};
 
-				txt += text;
-
-				const newCursor = {
-					line: cursor.line,
-					ch: cursor.ch + text.length,
-				};
-
-				editor.setCursor(newCursor);
-			}
+			editor.setCursor(newCursor);
 		}
 
 		// Cleanup
-		if (unfinishedCodeBlock(txt)) {
-			txt += '\n```';
+		if (unfinishedCodeBlock(fullResponse)) {
+			fullResponse += '\n```';
 		}
+
+		// Replace text from initialCursor to fix any formatting issues
+		const endCursor = editor.getCursor();
+		editor.replaceRange(
+			fullResponse,
+			{
+				line: initialLine,
+				ch: initialCh,
+			},
+			endCursor,
+		);
 
 		// Set cursor to end of replacement text
 		const newCursor = {
 			line: initialLine,
-			ch: initialCh + txt.length,
+			ch: initialCh + fullResponse.length,
 		};
 		editor.setCursor(newCursor);
 
-		// remove the text after the cursor
+		// Remove the text after the cursor
 		editor.replaceRange('', newCursor, {
 			line: Infinity,
 			ch: Infinity,
 		});
 
-		return txt;
+		return fullResponse;
 	}
 }
