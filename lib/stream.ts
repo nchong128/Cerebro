@@ -24,15 +24,25 @@ export class StreamManager {
 		chatCompletionStream: Stream<ChatCompletionChunk>,
 		editor: Editor,
 		position: EditorPosition,
-	): Promise<string> {
+	): Promise<{
+		fullResponse: string,
+		finishReason: string | null | undefined,
+	}> {
 		let fullResponse = '';
 
 		// Save initial cursor
 		const { ch: initialCh, line: initialLine } = position;
+		
+
+		// Get finish reason from final chunk
+		let finishReason;
 
 		// Process through each text chunk and paste
 		for await (const chunk of chatCompletionStream) {
 			const chunkText = chunk.choices[0].delta.content;
+			const chunkFinishReason = chunk.choices[0].finish_reason;
+			finishReason = chunkFinishReason;
+
 			// If text undefined, then do nothing
 			if (!chunkText) {
 				continue;
@@ -85,7 +95,13 @@ export class StreamManager {
 			line: Infinity,
 			ch: Infinity,
 		});
+		
+		// Reset the manual close
+		this.manualClose = false;
 
-		return fullResponse;
+		return {
+			fullResponse,
+			finishReason
+		};
 	}
 }

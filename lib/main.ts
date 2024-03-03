@@ -90,11 +90,14 @@ export default class CerebroGPT extends Plugin {
 					// @ts-ignore
 					const chatCompletionStream = chatCompletion as Stream<ChatCompletionChunk>;
 
-					await streamManager.streamOpenAiResponse(
+					const {fullResponse, finishReason } = await streamManager.streamOpenAiResponse(
 						chatCompletionStream,
 						editor,
 						position,
 					);
+					logger.info('[CerebroGPT] Model finished generating', {
+						finish_reason: finishReason,
+					});
 				} else {
 					const response: ChatCompletion = chatCompletion as ChatCompletion;
 					let responseStr = response.choices[0].message.content || 'No response';
@@ -110,60 +113,60 @@ export default class CerebroGPT extends Plugin {
 				statusBarItemEl.setText('');
 
 				// if (this.settings.autoInferTitle) {
-				// 	const title = view.file.basename;
+					// 	const title = view.file.basename;
 				//
 				// 	let messagesWithResponse = messages.concat(responseStr);
-				// 	messagesWithResponse = messagesWithResponse.map((message) => {
-				// 		return this.removeCommentsFromMessages(message);
-				// 	});
+					// 	messagesWithResponse = messagesWithResponse.map((message) => {
+						// 		return this.removeCommentsFromMessages(message);
+					// 	});
 				//
 				// 	if (
-				// 		this.isTitleTimestampFormat(title) &&
-				// 		messagesWithResponse.length >= 4
-				// 	) {
-				// 		logger.info(
-				// 			"[CerebroGPT] Auto inferring title from messages"
-				// 		);
+						// 		this.isTitleTimestampFormat(title) &&
+						// 		messagesWithResponse.length >= 4
+					// 	) {
+						// 		logger.info(
+							// 			"[CerebroGPT] Auto inferring title from messages"
+						// 		);
 				//
 				// 		statusBarItemEl.setText(
-				// 			"[CerebroGPT] Calling API..."
-				// 		);
-				// 		this.inferTitleFromMessages(
-				// 			messagesWithResponse
-				// 		)
+							// 			"[CerebroGPT] Calling API..."
+						// 		);
+						// 		this.inferTitleFromMessages(
+							// 			messagesWithResponse
+						// 		)
 				// 			.then(async (title) => {
-				// 				if (title) {
-				// 					logger.info(
-				// 						`[CerebroGPT] Automatically inferred title: ${title}. Changing file name...`
-				// 					);
-				// 					statusBarItemEl.setText("");
+								// 				if (title) {
+									// 					logger.info(
+										// 						`[CerebroGPT] Automatically inferred title: ${title}. Changing file name...`
+									// 					);
+									// 					statusBarItemEl.setText("");
 				//
 				// 					await writeInferredTitleToEditor(
-				// 						this.app.vault,
-				// 						view,
-				// 						this.app.fileManager,
-				// 						this.settings.chatFolder,
-				// 						title
-				// 					);
-				// 				} else {
-				// 					new Notice(
-				// 						"[CerebroGPT] Could not infer title",
-				// 						5000
-				// 					);
-				// 				}
+										// 						this.app.vault,
+										// 						view,
+										// 						this.app.fileManager,
+										// 						this.settings.chatFolder,
+										// 						title
+									// 					);
+								// 				} else {
+									// 					new Notice(
+										// 						"[CerebroGPT] Could not infer title",
+										// 						5000
+									// 					);
+								// 				}
 				// 			})
-				// 			.catch((err) => {
-				// 				logger.info(err);
-				// 				statusBarItemEl.setText("");
-				// 				if (Platform.isMobile) {
-				// 					new Notice(
-				// 						"[CerebroGPT] Error inferring title. " +
-				// 							err,
-				// 						5000
-				// 					);
-				// 				}
+							// 			.catch((err) => {
+								// 				logger.info(err);
+								// 				statusBarItemEl.setText("");
+								// 				if (Platform.isMobile) {
+									// 					new Notice(
+										// 						"[CerebroGPT] Error inferring title. " +
+											// 							err,
+										// 						5000
+									// 					);
+								// 				}
 				// 			});
-				// 	}
+					// 	}
 				// }
 			},
 		});
