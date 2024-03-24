@@ -86,21 +86,23 @@ export default class CerebroGPT extends Plugin {
 					frontmatter,
 				);
 
+				let responseStr;
 				if (frontmatter.stream) {
 					// @ts-ignore
 					const chatCompletionStream = chatCompletion as Stream<ChatCompletionChunk>;
 
-					const {fullResponse, finishReason } = await streamManager.streamOpenAiResponse(
+					const { fullResponse, finishReason } = await streamManager.streamOpenAiResponse(
 						chatCompletionStream,
 						editor,
 						position,
 					);
+					responseStr = fullResponse;
 					logger.info('[CerebroGPT] Model finished generating', {
 						finish_reason: finishReason,
 					});
 				} else {
 					const response: ChatCompletion = chatCompletion as ChatCompletion;
-					let responseStr = response.choices[0].message.content || 'No response';
+					responseStr = response.choices[0].message.content || 'No response';
 					logger.info('[CerebroGPT] Model finished generating', {
 						finish_reason: response.choices[0].finish_reason,
 					});
@@ -112,63 +114,45 @@ export default class CerebroGPT extends Plugin {
 
 				statusBarItemEl.setText('');
 
+
 				if (this.settings.autoInferTitle) {
-						const title = view.file.basename;
 
-					let messagesWithResponse = messages.concat(responseStr);
-						messagesWithResponse = messagesWithResponse.map((message) => {
-								return this.removeCommentsFromMessages(message);
-						});
+					const messagesWithResponse = messages.concat(responseStr);
 
-					if (
-								this.isTitleTimestampFormat(title) &&
-								messagesWithResponse.length >= 4
-						) {
-								logger.info(
-										"[CerebroGPT] Auto inferring title from messages"
+					const title = view.file.basename;
+
+					if (this.isTitleTimestampFormat(title) && messagesWithResponse.length >= 4) {
+						logger.info("[CerebroGPT] Auto inferring title from messages");
+						statusBarItemEl.setText("[CerebroGPT] Calling API...");
+
+						try {
+							const title = await this.inferTitleFromMessages(messagesWithResponse);
+							if (title) {
+								logger.info(`[CerebroGPT] Automatically inferred title: ${title}. Changing file name...`);
+								statusBarItemEl.setText("");
+								await writeInferredTitleToEditor(
+									this.app.vault,
+									view,
+									this.app.fileManager,
+									this.settings.chatFolder,
+									title
 								);
-
-						statusBarItemEl.setText(
-										"[CerebroGPT] Calling API..."
+							} else {
+								new Notice(
+									"[CerebroGPT] Could not infer title",
+									5000
 								);
-								this.inferTitleFromMessages(
-										messagesWithResponse
-								)
-							.then(async (title) => {
-												if (title) {
-														logger.info(
-																`[CerebroGPT] Automatically inferred title: ${title}. Changing file name...`
-														);
-														statusBarItemEl.setText("");
-
-									await writeInferredTitleToEditor(
-																this.app.vault,
-																view,
-																this.app.fileManager,
-																this.settings.chatFolder,
-																title
-														);
-												} else {
-														new Notice(
-																"[CerebroGPT] Could not infer title",
-																5000
-														);
-												}
-							})
-										.catch((err) => {
-												logger.info(err);
-												statusBarItemEl.setText("");
-												if (Platform.isMobile) {
-														new Notice(
-																"[CerebroGPT] Error inferring title. " +
-																		err,
-																5000
-														);
-												}
-							});
+							}
+						} catch(e) {
+							logger.info(e);
+							statusBarItemEl.setText("");
+							if (Platform.isMobile) {
+								new Notice(`[CerebroGPT] Error inferring title. ${e}`,5000);
+							}
 						}
+					}
 				}
-			},
+			}
 		});
 
 		this.addCommand({
@@ -535,46 +519,8 @@ export default class CerebroGPT extends Plugin {
 		new Notice('[CerebroGPT] Inferring title from messages...');
 
 		try {
-			if (messages.length < 2) {
-				new Notice('Not enough messages to infer title. Minimum 2 messages.');
-				return;
-			}
+			return await this.openAIClient.inferTitle(messages, this.settings.inferTitleLanguage);
 
-			const prompt = `Infer title from the summary of the content of these messages. The title **cannot** contain any of the following characters: colon, back slash or forward slash. Just return the title. Write the title in ${
-				this.settings.inferTitleLanguage
-			}. \nMessages:\n\n${JSON.stringify(messages)}`;
-
-			const titleMessage = [
-				{
-					role: 'user',
-					content: prompt,
-				},
-			];
-
-			const responseUrl = await requestUrl({
-				url: `https://api.openai.com/v1/chat/completions`,
-				method: 'POST',
-				headers: {
-					"Authorization": `Bearer ${this.settings.apiKey}`,
-					'Content-Type': 'application/json',
-				},
-				contentType: 'application/json',
-				body: JSON.stringify({
-					model: 'gpt-3.5-turbo',
-					messages: titleMessage,
-					max_tokens: 50,
-					temperature: 0.0,
-				}),
-				throw: false,
-			});
-
-			const response = responseUrl.text;
-			const responseJSON = JSON.parse(response);
-			return responseJSON.choices[0].message.content
-				.replace(/[:/\\]/g, '')
-				.replace('Title', '')
-				.replace('title', '')
-				.trim();
 		} catch (err) {
 			new Notice('[CerebroGPT] Error inferring title from messages');
 			throw new Error('[CerebroGPT] Error inferring title from messages' + err);
@@ -629,6 +575,10 @@ export default class CerebroGPT extends Plugin {
 			.replace('mm', paddedMinute)
 			.replace('ss', paddedSecond);
 	}
+
+	// private hasNMessages(numOfMessages: Number, ): boolean {
+	//
+	// }
 
 	private async loadSettings(): Promise<void> {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
