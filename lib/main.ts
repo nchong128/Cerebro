@@ -18,7 +18,7 @@ import { Stream } from 'openai/src/streaming';
 import {
 	appendNonStreamingMessage,
 	completeAssistantResponse,
-	completeUserResponse,
+	completeUserResponse, moveCursorToEndOfFile
 } from './utils/editor';
 
 const logger = pino({
@@ -50,6 +50,10 @@ export default class CerebroGPT extends Plugin {
 				// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 				statusBarItemEl.setText('[CerebroGPT] Calling API...');
 
+				if (Platform.isMobile) {
+					new Notice('[CerebroGPT] Calling API');
+				}
+
 				// Retrieve frontmatter
 				const frontmatter = this.getFrontmatter(view);
 
@@ -73,10 +77,6 @@ export default class CerebroGPT extends Plugin {
 							};
 						}),
 					);
-				}
-
-				if (Platform.isMobile) {
-					new Notice('[CerebroGPT] Calling API');
 				}
 
 				const position = completeUserResponse(editor, this.headingPrefix);
@@ -112,62 +112,62 @@ export default class CerebroGPT extends Plugin {
 
 				statusBarItemEl.setText('');
 
-				// if (this.settings.autoInferTitle) {
-					// 	const title = view.file.basename;
-				//
-				// 	let messagesWithResponse = messages.concat(responseStr);
-					// 	messagesWithResponse = messagesWithResponse.map((message) => {
-						// 		return this.removeCommentsFromMessages(message);
-					// 	});
-				//
-				// 	if (
-						// 		this.isTitleTimestampFormat(title) &&
-						// 		messagesWithResponse.length >= 4
-					// 	) {
-						// 		logger.info(
-							// 			"[CerebroGPT] Auto inferring title from messages"
-						// 		);
-				//
-				// 		statusBarItemEl.setText(
-							// 			"[CerebroGPT] Calling API..."
-						// 		);
-						// 		this.inferTitleFromMessages(
-							// 			messagesWithResponse
-						// 		)
-				// 			.then(async (title) => {
-								// 				if (title) {
-									// 					logger.info(
-										// 						`[CerebroGPT] Automatically inferred title: ${title}. Changing file name...`
-									// 					);
-									// 					statusBarItemEl.setText("");
-				//
-				// 					await writeInferredTitleToEditor(
-										// 						this.app.vault,
-										// 						view,
-										// 						this.app.fileManager,
-										// 						this.settings.chatFolder,
-										// 						title
-									// 					);
-								// 				} else {
-									// 					new Notice(
-										// 						"[CerebroGPT] Could not infer title",
-										// 						5000
-									// 					);
-								// 				}
-				// 			})
-							// 			.catch((err) => {
-								// 				logger.info(err);
-								// 				statusBarItemEl.setText("");
-								// 				if (Platform.isMobile) {
-									// 					new Notice(
-										// 						"[CerebroGPT] Error inferring title. " +
-											// 							err,
-										// 						5000
-									// 					);
-								// 				}
-				// 			});
-					// 	}
-				// }
+				if (this.settings.autoInferTitle) {
+						const title = view.file.basename;
+
+					let messagesWithResponse = messages.concat(responseStr);
+						messagesWithResponse = messagesWithResponse.map((message) => {
+								return this.removeCommentsFromMessages(message);
+						});
+
+					if (
+								this.isTitleTimestampFormat(title) &&
+								messagesWithResponse.length >= 4
+						) {
+								logger.info(
+										"[CerebroGPT] Auto inferring title from messages"
+								);
+
+						statusBarItemEl.setText(
+										"[CerebroGPT] Calling API..."
+								);
+								this.inferTitleFromMessages(
+										messagesWithResponse
+								)
+							.then(async (title) => {
+												if (title) {
+														logger.info(
+																`[CerebroGPT] Automatically inferred title: ${title}. Changing file name...`
+														);
+														statusBarItemEl.setText("");
+
+									await writeInferredTitleToEditor(
+																this.app.vault,
+																view,
+																this.app.fileManager,
+																this.settings.chatFolder,
+																title
+														);
+												} else {
+														new Notice(
+																"[CerebroGPT] Could not infer title",
+																5000
+														);
+												}
+							})
+										.catch((err) => {
+												logger.info(err);
+												statusBarItemEl.setText("");
+												if (Platform.isMobile) {
+														new Notice(
+																"[CerebroGPT] Error inferring title. " +
+																		err,
+																5000
+														);
+												}
+							});
+						}
+				}
 			},
 		});
 
@@ -288,7 +288,7 @@ export default class CerebroGPT extends Plugin {
 					}
 
 					activeView.editor.focus();
-					this.moveCursorToEndOfFile(activeView.editor);
+					moveCursorToEndOfFile(activeView.editor);
 				} catch (err) {
 					logger.error(
 						`[CerebroGPT] Error in Create new chat with highlighted text`,
@@ -473,24 +473,6 @@ export default class CerebroGPT extends Plugin {
 			return newCursor;
 		} catch (err) {
 			throw new Error('Error clearing conversation' + err);
-		}
-	}
-
-	moveCursorToEndOfFile(editor: Editor) {
-		try {
-			// get length of file
-			const length = editor.lastLine();
-
-			// move cursor to end of file https://davidwalsh.name/codemirror-set-focus-line
-			const newCursor = {
-				line: length + 1,
-				ch: 0,
-			};
-			editor.setCursor(newCursor);
-
-			return newCursor;
-		} catch (err) {
-			throw new Error('Error moving cursor to end of file' + err);
 		}
 	}
 

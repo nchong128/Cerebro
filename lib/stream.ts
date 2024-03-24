@@ -3,7 +3,6 @@ import { unfinishedCodeBlock } from 'lib/helpers';
 import pino from 'pino';
 import { ChatCompletionChunk } from 'openai/src/resources/chat/completions';
 import { Stream } from 'openai/src/streaming';
-import { text } from 'stream/consumers';
 
 const logger = pino({
 	level: 'info',
@@ -32,7 +31,6 @@ export class StreamManager {
 
 		// Save initial cursor
 		const { ch: initialCh, line: initialLine } = position;
-		
 
 		// Get finish reason from final chunk
 		let finishReason;
@@ -67,7 +65,7 @@ export class StreamManager {
 			editor.setCursor(newCursor);
 		}
 
-		// Cleanup
+		// Cleanup any unfinished code blocks
 		if (unfinishedCodeBlock(fullResponse)) {
 			fullResponse += '\n```';
 		}
