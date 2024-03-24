@@ -7,7 +7,7 @@ export const completeUserResponse = (editor: Editor, headingPrefix: string): Edi
 	 * 3. Completes the user's response by placing the assistant's header
 	 */
 	moveCursorToEndOfFile(editor);
-	const newLine = `\n\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::assistant\n\n`;
+	const newLine = `\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::assistant\n\n`;
 	editor.replaceRange(newLine, editor.getCursor());
 	return moveCursorToEndOfLine(editor, newLine);
 };
@@ -21,7 +21,7 @@ export const completeAssistantResponse = (
 	 * 2. Completes the assistants response by placing the user's header
 	 * 3. Moves cursor to end of line
 	 */
-	const newLine = `\n\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::user\n\n`;
+	const newLine = `\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::user\n\n`;
 	editor.replaceRange(newLine, editor.getCursor());
 	return moveCursorToEndOfLine(editor, newLine);
 };
