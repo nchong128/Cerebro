@@ -3,7 +3,8 @@ import { FrontMatterCache } from 'obsidian';
 import { ChatCompletionCreateParamsBase } from 'openai/src/resources/chat/completions';
 
 export interface CerebroSettings {
-	apiKey: string;
+	openAIApiKey: string;
+	anthropicApiKey: string;
 	defaultChatFrontmatter: string;
 	stream: boolean;
 	chatTemplateFolder: string;

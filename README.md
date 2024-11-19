@@ -14,7 +14,7 @@ https://user-images.githubusercontent.com/3282661/223005882-6632c997-b9a6-445b-8
 
 -   Chat from _any_ MD note
 -   Create Chat _Templates_ for sharing and running similar scenarios. Check out the companion repo [chatgpt-md-templates](https://github.com/bramses/chatgpt-md-templates) for some templates!
--   As _minimal boilerplate as possible_, only two required in fact! `<hr class="__chatgpt_plugin">` and `role::system|assistant|user`
+-   As _minimal boilerplate as possible_, only two required in fact! `<hr class="__cerebro_plugin">` and `role::system|assistant|user`
 -   Use _frontmatter_ to change variables for the ChatGPT API
 -   _Stream_ characters to Obsidian, creating a realtime feel
 -   Uses _regular Markdown_. Meaning everything from _lists_ to _code blocks_ from ChatGPT _will render_!
@@ -66,7 +66,7 @@ Stops the stream. Useful if you want to stop the stream if you don't like where 
 
 Add a ChatGPT MD Horizontal Rule and `role::user`.
 
-**!! Note: both `role::system|assistant|user` AND `<hr class="__chatgpt_plugin">` are REQUIRED for the plugin to work!!**
+**!! Note: both `role::system|assistant|user` AND `<hr class="__cerebro_plugin">` are REQUIRED for the plugin to work!!**
 
 ## Installation
 
@@ -121,18 +121,17 @@ url: https://localhost
 
 The custom API must conform to the OpenAI API spec. eg you could use Azure's OpenAI hosted endpoints here. Refer to your provider for API key handling.
 
-## About the Developer
+---
 
-This repository was written by Bram Adams, a writer and programmer based out of NYC.
+### Development
 
-Bram publishes a weekly newsletter, is a [community developer ambassador for OpenAI](https://platform.openai.com/ambassadors), and does freeleance contracts ([for hire!](https://www.bramadams.dev/consulting/)) related to AI/web dev/AR+VR.
+#### Project Structure
 
-As of Fall 2023, Bram is actively working on [Commonplace Bot](https://github.com/bramses/commonplace-bot), a novel and modern look into how LLMs and creative coding can help us capture, engage, and creatively remix the best pieces of information we come across. You can test it out live in the Bram Adams' [Discord server](https://discord.gg/GrgkFP3Je3).
-
-Bram is the creator of [Stenography](https://stenography.dev), an API and [VSC Extension](https://marketplace.visualstudio.com/items?itemName=Stenography.stenography) that automatically documents code on save, which went [#1 on Product Hunt](https://www.producthunt.com/products/stenography#stenography). He also is the author of [Bramses' Highly Opinionated Vault](https://github.com/bramses/bramses-highly-opinionated-vault-2023), an extremely detailed philosophy + vault template used by thousands of Obsidian users (new and old!), and [ChatGPT MD](https://github.com/bramses/chatgpt-md), a (nearly) seemless integration of Chat GPT into Obsidian which has been downloaded by over twenty thousand Obsidian users. He also taught the [GPT-3 in Production Course for O'Reilly Media](https://www.oreilly.com/live-events/gpt-3-in-production/0636920065944/0636920071443/), teaching students how to leverage LLMs in the real world of production.
-
-Previously Developer Advocate @ [Algolia](https://www.algolia.com/), Software Engineer @ [HBO](https://www.hbo.com/), Computer Science B.S. @ [University of Rochester](https://rochester.edu/)
-
-You can learn more about him and his work on his [website](https://www.bramadams.dev/about/).
-
-The best way to support his work is to sign up for his newsletter [here](https://www.bramadams.dev/#/portal/).
+```
+main.ts: Plugin management, initializes settings and objects such as LLM clients, registers commands
+models/openAIClient.ts: OpenAI client inheriting the Client interface
+models/anthropicClient.ts: Anthropic client inheriting the Client interface
+views/settings.ts: Settings tab
+constants.ts: Constants for package-wide use
+types.ts: Types for package-wide use
+```

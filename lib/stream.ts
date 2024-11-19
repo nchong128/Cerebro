@@ -1,8 +1,6 @@
 import { Editor, EditorPosition, Notice, Platform } from 'obsidian';
 import { unfinishedCodeBlock } from 'lib/helpers';
 import pino from 'pino';
-import { ChatCompletionChunk } from 'openai/src/resources/chat/completions';
-import { Stream } from 'openai/src/streaming';
 
 const logger = pino({
 	level: 'info',
@@ -19,13 +17,13 @@ export class StreamManager {
 		this.manualClose = true;
 	};
 
-	public async streamOpenAiResponse(
+	public async streamOpenAIResponse(
 		chatCompletionStream: Stream<ChatCompletionChunk>,
 		editor: Editor,
 		position: EditorPosition,
 	): Promise<{
-		fullResponse: string,
-		finishReason: string | null | undefined,
+		fullResponse: string;
+		finishReason: string | null | undefined;
 	}> {
 		let fullResponse = '';
 
@@ -42,9 +40,7 @@ export class StreamManager {
 			finishReason = chunkFinishReason;
 
 			// If text undefined, then do nothing
-			if (!chunkText) {
-				continue;
-			}
+			if (!chunkText) continue;
 
 			if (this.manualClose) {
 				logger.info('Stopping stream...');
@@ -55,13 +51,14 @@ export class StreamManager {
 			const cursor = editor.getCursor();
 			editor.replaceRange(chunkText, cursor);
 
+			// Add chunk to full response
 			fullResponse += chunkText;
 
+			// Set new cursor position based on chunk text
 			const newCursor = {
 				line: cursor.line,
 				ch: cursor.ch + chunkText.length,
 			};
-
 			editor.setCursor(newCursor);
 		}
 
@@ -93,13 +90,13 @@ export class StreamManager {
 			line: Infinity,
 			ch: Infinity,
 		});
-		
+
 		// Reset the manual close
 		this.manualClose = false;
 
 		return {
 			fullResponse,
-			finishReason
+			finishReason,
 		};
 	}
 }
