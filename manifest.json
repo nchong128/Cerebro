@@ -1,6 +1,6 @@
 {
-	"id": "cerebro-gpt",
-	"name": "CerebroGPT",
+	"id": "cerebro",
+	"name": "Cerebro",
 	"version": "1.0.0",
 	"minAppVersion": "0.0.1",
 	"description": "Your notes brought to life.",

@@ -1,19 +1,14 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import { Editor, MarkdownView, Notice, Platform, Plugin, requestUrl } from 'obsidian';
+import { Editor, MarkdownView, Notice, Platform, Plugin } from 'obsidian';
 import { StreamManager } from './stream';
 import { createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor } from 'lib/helpers';
 import { SettingsTab } from './settings';
 import { ChatTemplatesHandler } from './chatTemplates';
-import { CerebroGPTSettings, ChatFrontMatter } from './types';
+import { CerebroSettings, ChatFrontMatter } from './types';
 import { DEFAULT_SETTINGS, YAML_FRONTMATTER_REGEX } from './constants';
 import pino from 'pino';
 import { OpenAIClient } from './openAIClient';
-import {
-	ChatCompletionChunk,
-	ChatCompletionMessageParam,
-} from 'openai/src/resources/chat/completions';
 import OpenAI from 'openai';
-import ChatCompletion = OpenAI.ChatCompletion;
 import { Stream } from 'openai/src/streaming';
 import {
 	appendNonStreamingMessage,
@@ -25,16 +20,16 @@ const logger = pino({
 	level: 'info',
 });
 
-export default class CerebroGPT extends Plugin {
-	settings: CerebroGPTSettings;
+export default class Cerebro extends Plugin {
+	settings: CerebroSettings;
 	openAIClient: OpenAIClient;
 
 	async onload(): Promise<void> {
-		logger.debug('[CerebroGPT] Adding status bar');
+		logger.debug('[Cerebro] Adding status bar');
 
 		const statusBarItemEl = this.addStatusBarItem();
 
-		logger.debug('[CerebroGPT] Loading settings');
+		logger.debug('[Cerebro] Loading settings');
 		await this.loadSettings();
 
 		const streamManager = new StreamManager();
@@ -48,10 +43,10 @@ export default class CerebroGPT extends Plugin {
 			icon: 'message-circle',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-				statusBarItemEl.setText('[CerebroGPT] Calling API...');
+				statusBarItemEl.setText('[Cerebro] Calling API...');
 
 				if (Platform.isMobile) {
-					new Notice('[CerebroGPT] Calling API');
+					new Notice('[Cerebro] Calling API');
 				}
 
 				// Retrieve frontmatter
@@ -70,7 +65,7 @@ export default class CerebroGPT extends Plugin {
 					const systemCommands = frontmatter.system_commands;
 					// Prepend system commands to messages
 					chatCompletionMessages.unshift(
-						...systemCommands.map((command): ChatCompletionMessageParam => {
+						...systemCommands.map((command): OpenAI.Chat.ChatCompletionMessageParam => {
 							return {
 								role: 'system',
 								content: command,
@@ -97,13 +92,13 @@ export default class CerebroGPT extends Plugin {
 						position,
 					);
 					responseStr = fullResponse;
-					logger.info('[CerebroGPT] Model finished generating', {
+					logger.info('[Cerebro] Model finished generating', {
 						finish_reason: finishReason,
 					});
 				} else {
-					const response: ChatCompletion = chatCompletion as ChatCompletion;
+					const response = chatCompletion as OpenAI.ChatCompletion;
 					responseStr = response.choices[0].message.content || 'No response';
-					logger.info('[CerebroGPT] Model finished generating', {
+					logger.info('[Cerebro] Model finished generating', {
 						finish_reason: response.choices[0].finish_reason,
 					});
 					if (unfinishedCodeBlock(responseStr)) responseStr = responseStr + '\n```';
@@ -119,16 +114,16 @@ export default class CerebroGPT extends Plugin {
 
 					const messagesWithResponse = messages.concat(responseStr);
 
-					const title = view.file.basename;
+					const title = view?.file?.basename;
 
-					if (this.isTitleTimestampFormat(title) && messagesWithResponse.length >= 4) {
-						logger.info("[CerebroGPT] Auto inferring title from messages");
-						statusBarItemEl.setText("[CerebroGPT] Calling API...");
+					if (title && this.isTitleTimestampFormat(title) && messagesWithResponse.length >= 4) {
+						logger.info("[Cerebro] Auto inferring title from messages");
+						statusBarItemEl.setText("[Cerebro] Calling API...");
 
 						try {
 							const title = await this.inferTitleFromMessages(messagesWithResponse);
 							if (title) {
-								logger.info(`[CerebroGPT] Automatically inferred title: ${title}. Changing file name...`);
+								logger.info(`[Cerebro] Automatically inferred title: ${title}. Changing file name...`);
 								statusBarItemEl.setText("");
 								await writeInferredTitleToEditor(
 									this.app.vault,
@@ -139,7 +134,7 @@ export default class CerebroGPT extends Plugin {
 								);
 							} else {
 								new Notice(
-									"[CerebroGPT] Could not infer title",
+									"[Cerebro] Could not infer title",
 									5000
 								);
 							}
@@ -147,7 +142,7 @@ export default class CerebroGPT extends Plugin {
 							logger.info(e);
 							statusBarItemEl.setText("");
 							if (Platform.isMobile) {
-								new Notice(`[CerebroGPT] Error inferring title. ${e}`,5000);
+								new Notice(`[Cerebro] Error inferring title. ${e}`,5000);
 							}
 						}
 					}
@@ -205,7 +200,7 @@ export default class CerebroGPT extends Plugin {
 					return this.removeCommentsFromMessages(message);
 				});
 
-				statusBarItemEl.setText('[CerebroGPT] Calling API...');
+				statusBarItemEl.setText('[Cerebro] Calling API...');
 				const title = await this.inferTitleFromMessages(messages);
 				statusBarItemEl.setText('');
 
@@ -232,7 +227,7 @@ export default class CerebroGPT extends Plugin {
 
 					if (!this.settings.chatFolder || this.settings.chatFolder.trim() === '') {
 						new Notice(
-							`[CerebroGPT] No chat folder value found. Please set one in settings.`,
+							`[Cerebro] No chat folder value found. Please set one in settings.`,
 						);
 						return;
 					}
@@ -246,7 +241,7 @@ export default class CerebroGPT extends Plugin {
 						);
 						if (!result) {
 							new Notice(
-								`[CerebroGPT] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
+								`[Cerebro] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
 							);
 							return;
 						}
@@ -275,11 +270,11 @@ export default class CerebroGPT extends Plugin {
 					moveCursorToEndOfFile(activeView.editor);
 				} catch (err) {
 					logger.error(
-						`[CerebroGPT] Error in Create new chat with highlighted text`,
+						`[Cerebro] Error in Create new chat with highlighted text`,
 						err,
 					);
 					new Notice(
-						`[CerebroGPT] Error in Create new chat with highlighted text, check console`,
+						`[Cerebro] Error in Create new chat with highlighted text, check console`,
 					);
 				}
 			},
@@ -292,7 +287,7 @@ export default class CerebroGPT extends Plugin {
 			editorCallback: async (editor: Editor, view: MarkdownView): Promise<void> => {
 				if (!this.settings.chatFolder || this.settings.chatFolder.trim() === '') {
 					new Notice(
-						`[CerebroGPT] No chat folder value found. Please set one in settings.`,
+						`[Cerebro] No chat folder value found. Please set one in settings.`,
 					);
 					return;
 				}
@@ -306,7 +301,7 @@ export default class CerebroGPT extends Plugin {
 					);
 					if (!result) {
 						new Notice(
-							`[CerebroGPT] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
+							`[Cerebro] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
 						);
 						return;
 					}
@@ -317,7 +312,7 @@ export default class CerebroGPT extends Plugin {
 					this.settings.chatTemplateFolder.trim() === ''
 				) {
 					new Notice(
-						`[CerebroGPT] No chat template folder value found. Please set one in settings.`,
+						`[Cerebro] No chat template folder value found. Please set one in settings.`,
 					);
 					return;
 				}
@@ -331,7 +326,7 @@ export default class CerebroGPT extends Plugin {
 					);
 					if (!result) {
 						new Notice(
-							`[CerebroGPT] No chat template folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
+							`[Cerebro] No chat template folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
 						);
 						return;
 					}
@@ -377,13 +372,13 @@ export default class CerebroGPT extends Plugin {
 		 */
 		try {
 			// Retrieve frontmatter
-			const noteFile = app.workspace.getActiveFile();
+			const noteFile = this.app.workspace.getActiveFile();
 
 			if (!noteFile) {
 				throw new Error('No active file');
 			}
 
-			const metaMatter = app.metadataCache.getFileCache(noteFile)?.frontmatter;
+			const metaMatter = this.app.metadataCache.getFileCache(noteFile)?.frontmatter;
 
 			const shouldStream =
 				metaMatter?.stream !== undefined
@@ -471,7 +466,7 @@ export default class CerebroGPT extends Plugin {
 		}
 	}
 
-	extractRoleAndMessage(message: string): ChatCompletionMessageParam {
+	extractRoleAndMessage(message: string): OpenAI.Chat.ChatCompletionMessageParam {
 		try {
 			if (message.includes('role::')) {
 				const role = message.split('role::')[1].split('\n')[0].trim();
@@ -515,15 +510,15 @@ export default class CerebroGPT extends Plugin {
 	}
 
 	async inferTitleFromMessages(messages: string[]) {
-		logger.info('[CerebroGPT] Inferring Title');
-		new Notice('[CerebroGPT] Inferring title from messages...');
+		logger.info('[Cerebro] Inferring Title');
+		new Notice('[Cerebro] Inferring title from messages...');
 
 		try {
 			return await this.openAIClient.inferTitle(messages, this.settings.inferTitleLanguage);
 
 		} catch (err) {
-			new Notice('[CerebroGPT] Error inferring title from messages');
-			throw new Error('[CerebroGPT] Error inferring title from messages' + err);
+			new Notice('[Cerebro] Error inferring title from messages');
+			throw new Error('[Cerebro] Error inferring title from messages' + err);
 		}
 	}
 

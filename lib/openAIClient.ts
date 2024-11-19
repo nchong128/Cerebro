@@ -1,13 +1,6 @@
 import OpenAI from 'openai';
-import {
-	ChatCompletionMessageParam,
-} from 'openai/src/resources/chat/completions';
 import { ChatFrontMatter } from './types';
 import { Notice } from 'obsidian';
-import { Chat, ChatCompletionCreateParams } from 'openai/resources';
-import ChatCompletion = Chat.ChatCompletion;
-import ChatCompletionCreateParamsNonStreaming = ChatCompletionCreateParams.ChatCompletionCreateParamsNonStreaming;
-
 
 export class OpenAIClient {
 	private client: OpenAI;
@@ -20,7 +13,7 @@ export class OpenAIClient {
 	}
 
 	public async createChatCompletion(
-		messages: ChatCompletionMessageParam[],
+		messages: OpenAI.Chat.ChatCompletionMessageParam[],
 		{
 			frequency_penalty,
 			logit_bias,
@@ -57,20 +50,20 @@ export class OpenAIClient {
 
 		const prompt = `Infer title from the summary of the content of these messages. The title **cannot** contain any of the following characters: colon, back slash or forward slash. Just return the title. Write the title in ${inferTitleLanguage}. \nMessages:\n\n${JSON.stringify(messages)}`;
 
-		const titleMessage: ChatCompletionMessageParam[]  = [
+		const titleMessage: OpenAI.Chat.ChatCompletionMessageParam[] = [
 			{
 				role: 'user',
 				content: prompt,
 			},
 		];
 
-		const response: ChatCompletion = await this.client.chat.completions.create({
+		const response = await this.client.chat.completions.create({
 			messages: titleMessage,
 			model: 'gpt-3.5-turbo',
 			max_tokens: 50,
 			temperature: 0.0,
 			stream: false,
-		} as ChatCompletionCreateParamsNonStreaming);
+		});
 
 		const title = response.choices[0].message.content;
 

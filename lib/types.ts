@@ -2,7 +2,7 @@ import { FrontMatterCache } from 'obsidian';
 
 import { ChatCompletionCreateParamsBase } from 'openai/src/resources/chat/completions';
 
-export interface CerebroGPTSettings {
+export interface CerebroSettings {
 	apiKey: string;
 	defaultChatFrontmatter: string;
 	stream: boolean;

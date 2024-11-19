@@ -1,10 +1,10 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import CerebroGPT from './main';
+import Cerebro from './main';
 
 export class SettingsTab extends PluginSettingTab {
-	plugin: CerebroGPT;
+	plugin: Cerebro;
 
-	constructor(app: App, plugin: CerebroGPT) {
+	constructor(app: App, plugin: Cerebro) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -15,7 +15,7 @@ export class SettingsTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl('h1', {
-			text: 'CerebroGPT',
+			text: 'Cerebro',
 		});
 		containerEl.createEl('h5', {
 			text: 'Keep tokens in mind! You can see if your text is longer than the token limit (4096) here:',

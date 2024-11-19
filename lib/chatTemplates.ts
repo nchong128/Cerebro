@@ -1,5 +1,5 @@
 import { App, Notice, SuggestModal, TFile, TFolder } from 'obsidian';
-import { CerebroGPTSettings } from './types';
+import { CerebroSettings } from './types';
 
 interface ChatTemplates {
 	title: string;
@@ -7,10 +7,10 @@ interface ChatTemplates {
 }
 
 export class ChatTemplatesHandler extends SuggestModal<ChatTemplates> {
-	settings: CerebroGPTSettings;
+	settings: CerebroSettings;
 	titleDate: string;
 
-	constructor(app: App, settings: CerebroGPTSettings, titleDate: string) {
+	constructor(app: App, settings: CerebroSettings, titleDate: string) {
 		super(app);
 		this.settings = settings;
 		this.titleDate = titleDate;

@@ -13,7 +13,7 @@ export class StreamManager {
 
 	stopStreaming = () => {
 		if (Platform.isMobile) {
-			new Notice('[CerebroGPT] Mobile not supported.');
+			new Notice('[Cerebro] Mobile not supported.');
 			return;
 		}
 		this.manualClose = true;
