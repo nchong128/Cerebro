@@ -14,7 +14,7 @@ export const unfinishedCodeBlock = (txt: string) => {
 		return false;
 	}
 
-	if (matcher.length % 2 !== 0) logger.info('[CerebroGPT] Unclosed code block detected');
+	if (matcher.length % 2 !== 0) logger.info('[Cerebro] Unclosed code block detected');
 
 	return matcher.length % 2 !== 0;
 };
@@ -41,10 +41,12 @@ export const writeInferredTitleToEditor = async (
 			i++;
 		}
 
-		fileManager.renameFile(file, newFileName);
+		if (file) {
+			fileManager.renameFile(file, newFileName);
+		}
 	} catch (err) {
-		new Notice('[CerebroGPT] Error writing inferred title to editor');
-		logger.info('[CerebroGPT] Error writing inferred title to editor', err);
+		new Notice('[Cerebro] Error writing inferred title to editor');
+		logger.info('[Cerebro] Error writing inferred title to editor', err);
 		throw err;
 	}
 };
@@ -61,10 +63,10 @@ export const createFolderModal = async (
 	const result = await folderCreationModal.waitForModalValue();
 
 	if (result) {
-		logger.info('[CerebroGPT] Creating folder');
+		logger.info('[Cerebro] Creating folder');
 		await vault.createFolder(folderPath);
 	} else {
-		logger.info('[CerebroGPT] Not creating folder');
+		logger.info('[Cerebro] Not creating folder');
 	}
 
 	return result;
@@ -92,7 +94,7 @@ class FolderCreationModal extends Modal {
 		const { contentEl } = this;
 
 		contentEl.createEl('h2', {
-			text: `[CerebroGPT] No ${this.folderName} folder found.`,
+			text: `[Cerebro] No ${this.folderName} folder found.`,
 		});
 
 		contentEl.createEl('p', {

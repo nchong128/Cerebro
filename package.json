@@ -1,5 +1,5 @@
 {
-	"name": "cerebro-gpt",
+	"name": "cerebro",
 	"version": "1.0.0",
 	"description": "Your notes brought to life.",
 	"main": "main.js",
@@ -22,8 +22,8 @@
 		"esbuild": "0.17.3",
 		"eslint": "^8.56.0",
 		"eslint-config-prettier": "^9.1.0",
-		"obsidian": "latest",
-		"openai": "^4.28.0",
+		"obsidian": "1.7.2",
+		"openai": "^4.72.0",
 		"prettier": "3.2.5",
 		"tslib": "2.4.0",
 		"typescript": "4.7.4"
