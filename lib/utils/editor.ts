@@ -7,7 +7,7 @@ export const completeUserResponse = (editor: Editor, headingPrefix: string): Edi
 	 * 3. Completes the user's response by placing the assistant's header
 	 */
 	moveCursorToEndOfFile(editor);
-	const newLine = `\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::assistant\n\n`;
+	const newLine = `\n<hr class="__cerebro_plugin">\n\n${headingPrefix}role::assistant\n\n`;
 	editor.replaceRange(newLine, editor.getCursor());
 	return moveCursorToEndOfLine(editor, newLine);
 };
@@ -21,7 +21,7 @@ export const completeAssistantResponse = (
 	 * 2. Completes the assistants response by placing the user's header
 	 * 3. Moves cursor to end of line
 	 */
-	const newLine = `\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::user\n\n`;
+	const newLine = `\n<hr class="__cerebro_plugin">\n\n${headingPrefix}role::user\n\n`;
 	editor.replaceRange(newLine, editor.getCursor());
 	return moveCursorToEndOfLine(editor, newLine);
 };
@@ -36,11 +36,10 @@ export const appendNonStreamingMessage = (
 	 * 2. Moves cursor to end of line
 	 */
 
-	// const newLine = `\n\n<hr class="__chatgpt_plugin">\n\n${headingPrefix}role::assistant\n\n${message}\n\n`;
+	// const newLine = `\n\n<hr class="__cerebro_plugin">\n\n${headingPrefix}role::assistant\n\n${message}\n\n`;
 	editor.replaceRange(message, editor.getCursor());
 	return moveCursorToEndOfLine(editor, message);
 };
-
 
 export const moveCursorToEndOfFile = (editor: Editor) => {
 	try {
@@ -58,9 +57,7 @@ export const moveCursorToEndOfFile = (editor: Editor) => {
 	} catch (err) {
 		throw new Error('Error moving cursor to end of file' + err);
 	}
-}
-
-
+};
 
 export const moveCursorToEndOfLine = (editor: Editor, change: string): EditorPosition => {
 	// Moves cursor to end of line

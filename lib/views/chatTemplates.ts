@@ -1,5 +1,5 @@
 import { App, Notice, SuggestModal, TFile, TFolder } from 'obsidian';
-import { CerebroSettings } from './types';
+import { CerebroSettings } from '../types';
 
 interface ChatTemplates {
 	title: string;
@@ -7,29 +7,29 @@ interface ChatTemplates {
 }
 
 export class ChatTemplatesHandler extends SuggestModal<ChatTemplates> {
-	settings: CerebroSettings;
-	titleDate: string;
+	readonly #settings: CerebroSettings;
+	readonly #titleDate: string;
 
 	constructor(app: App, settings: CerebroSettings, titleDate: string) {
 		super(app);
-		this.settings = settings;
-		this.titleDate = titleDate;
+		this.#settings = settings;
+		this.#titleDate = titleDate;
 	}
 
-	getFilesInChatFolder(): TFile[] {
+	public getFilesInChatFolder(): TFile[] {
 		const folder = this.app.vault.getAbstractFileByPath(
-			this.settings.chatTemplateFolder,
+			this.#settings.chatTemplateFolder,
 		) as TFolder;
 		if (folder != null) {
 			return folder.children as TFile[];
 		} else {
-			new Notice(`Error getting folder: ${this.settings.chatTemplateFolder}`);
-			throw new Error(`Error getting folder: ${this.settings.chatTemplateFolder}`);
+			new Notice(`Error getting folder: ${this.#settings.chatTemplateFolder}`);
+			throw new Error(`Error getting folder: ${this.#settings.chatTemplateFolder}`);
 		}
 	}
 
 	// Returns all available suggestions.
-	getSuggestions(query: string): ChatTemplates[] {
+	public getSuggestions(query: string): ChatTemplates[] {
 		const chatTemplateFiles = this.getFilesInChatFolder();
 
 		if (query == '') {
@@ -54,17 +54,17 @@ export class ChatTemplatesHandler extends SuggestModal<ChatTemplates> {
 	}
 
 	// Renders each suggestion item.
-	renderSuggestion(template: ChatTemplates, el: HTMLElement) {
+	public renderSuggestion(template: ChatTemplates, el: HTMLElement) {
 		el.createEl('div', { text: template.title });
 	}
 
 	// Perform action on the selected suggestion.
-	async onChooseSuggestion(template: ChatTemplates, evt: MouseEvent | KeyboardEvent) {
+	public async onChooseSuggestion(template: ChatTemplates, evt: MouseEvent | KeyboardEvent) {
 		new Notice(`Selected ${template.title}`);
 		const templateText = await this.app.vault.read(template.file);
 		// use template text to create new file in chat folder
 		const file = await this.app.vault.create(
-			`${this.settings.chatFolder}/${this.titleDate}.md`,
+			`${this.#settings.chatFolder}/${this.#titleDate}.md`,
 			templateText,
 		);
 

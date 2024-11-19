@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { ChatFrontMatter } from './types';
+import { ChatFrontMatter } from '../types';
 import { Notice } from 'obsidian';
 
 export class OpenAIClient {
@@ -42,7 +42,7 @@ export class OpenAIClient {
 		});
 	}
 
-	public async inferTitle(messages: string[], inferTitleLanguage: string,) {
+	public async inferTitle(messages: string[], inferTitleLanguage: string) {
 		if (messages.length < 2) {
 			new Notice('Not enough messages to infer title. Minimum 2 messages.');
 			return;
@@ -71,8 +71,8 @@ export class OpenAIClient {
 			throw new Error('Title unable to be inferred');
 		}
 
-		return title.
-			replace(/[:/\\]/g, '')
+		return title
+			.replace(/[:/\\]/g, '')
 			.replace('Title', '')
 			.replace('title', '')
 			.trim();

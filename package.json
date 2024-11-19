@@ -7,10 +7,10 @@
 		"dev": "node esbuild.config.mjs",
 		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"format": "prettier --check lib/",
-		"fix_format": "prettier --write lib/",
-		"lint": "eslint lib/** --max-warnings=0",
-		"fix_lint": "eslint lib/** --fix"
+		"format": "prettier --check .",
+		"format:fix": "prettier --write .",
+		"lint": "eslint lib/ --max-warnings=0",
+		"lint:fix": "eslint lib/ --fix"
 	},
 	"keywords": [],
 	"author": "Nick Chong",

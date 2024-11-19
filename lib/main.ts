@@ -2,18 +2,19 @@
 import { Editor, MarkdownView, Notice, Platform, Plugin } from 'obsidian';
 import { StreamManager } from './stream';
 import { createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor } from 'lib/helpers';
-import { SettingsTab } from './settings';
-import { ChatTemplatesHandler } from './chatTemplates';
+import { SettingsTab } from './views/settings';
+import { ChatTemplatesHandler } from './views/chatTemplates';
 import { CerebroSettings, ChatFrontMatter } from './types';
 import { DEFAULT_SETTINGS, YAML_FRONTMATTER_REGEX } from './constants';
 import pino from 'pino';
-import { OpenAIClient } from './openAIClient';
+import { OpenAIClient } from './models/openAIClient';
 import OpenAI from 'openai';
 import { Stream } from 'openai/src/streaming';
 import {
 	appendNonStreamingMessage,
 	completeAssistantResponse,
-	completeUserResponse, moveCursorToEndOfFile
+	completeUserResponse,
+	moveCursorToEndOfFile,
 } from './utils/editor';
 
 const logger = pino({
@@ -21,12 +22,11 @@ const logger = pino({
 });
 
 export default class Cerebro extends Plugin {
-	settings: CerebroSettings;
-	openAIClient: OpenAIClient;
+	public settings: CerebroSettings;
+	private openAIClient: OpenAIClient;
 
 	async onload(): Promise<void> {
 		logger.debug('[Cerebro] Adding status bar');
-
 		const statusBarItemEl = this.addStatusBarItem();
 
 		logger.debug('[Cerebro] Loading settings');
@@ -34,7 +34,7 @@ export default class Cerebro extends Plugin {
 
 		const streamManager = new StreamManager();
 
-		this.openAIClient = new OpenAIClient(this.settings.apiKey);
+		this.openAIClient = new OpenAIClient(this.settings.openAIApiKey);
 
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
@@ -83,10 +83,10 @@ export default class Cerebro extends Plugin {
 
 				let responseStr;
 				if (frontmatter.stream) {
-					// @ts-ignore
-					const chatCompletionStream = chatCompletion as Stream<ChatCompletionChunk>;
+					const chatCompletionStream =
+						chatCompletion as unknown as Stream<OpenAI.Chat.ChatCompletion>;
 
-					const { fullResponse, finishReason } = await streamManager.streamOpenAiResponse(
+					const { fullResponse, finishReason } = await streamManager.streamOpenAIResponse(
 						chatCompletionStream,
 						editor,
 						position,
@@ -109,45 +109,46 @@ export default class Cerebro extends Plugin {
 
 				statusBarItemEl.setText('');
 
-
 				if (this.settings.autoInferTitle) {
-
 					const messagesWithResponse = messages.concat(responseStr);
 
 					const title = view?.file?.basename;
 
-					if (title && this.isTitleTimestampFormat(title) && messagesWithResponse.length >= 4) {
-						logger.info("[Cerebro] Auto inferring title from messages");
-						statusBarItemEl.setText("[Cerebro] Calling API...");
+					if (
+						title &&
+						this.isTitleTimestampFormat(title) &&
+						messagesWithResponse.length >= 4
+					) {
+						logger.info('[Cerebro] Auto inferring title from messages');
+						statusBarItemEl.setText('[Cerebro] Calling API...');
 
 						try {
 							const title = await this.inferTitleFromMessages(messagesWithResponse);
 							if (title) {
-								logger.info(`[Cerebro] Automatically inferred title: ${title}. Changing file name...`);
-								statusBarItemEl.setText("");
+								logger.info(
+									`[Cerebro] Automatically inferred title: ${title}. Changing file name...`,
+								);
+								statusBarItemEl.setText('');
 								await writeInferredTitleToEditor(
 									this.app.vault,
 									view,
 									this.app.fileManager,
 									this.settings.chatFolder,
-									title
+									title,
 								);
 							} else {
-								new Notice(
-									"[Cerebro] Could not infer title",
-									5000
-								);
+								new Notice('[Cerebro] Could not infer title', 5000);
 							}
-						} catch(e) {
+						} catch (e) {
 							logger.info(e);
-							statusBarItemEl.setText("");
+							statusBarItemEl.setText('');
 							if (Platform.isMobile) {
-								new Notice(`[Cerebro] Error inferring title. ${e}`,5000);
+								new Notice(`[Cerebro] Error inferring title. ${e}`, 5000);
 							}
 						}
 					}
 				}
-			}
+			},
 		});
 
 		this.addCommand({
@@ -269,10 +270,7 @@ export default class Cerebro extends Plugin {
 					activeView.editor.focus();
 					moveCursorToEndOfFile(activeView.editor);
 				} catch (err) {
-					logger.error(
-						`[Cerebro] Error in Create new chat with highlighted text`,
-						err,
-					);
+					logger.error(`[Cerebro] Error in Create new chat with highlighted text`, err);
 					new Notice(
 						`[Cerebro] Error in Create new chat with highlighted text, check console`,
 					);
@@ -286,9 +284,7 @@ export default class Cerebro extends Plugin {
 			icon: 'layout-template',
 			editorCallback: async (editor: Editor, view: MarkdownView): Promise<void> => {
 				if (!this.settings.chatFolder || this.settings.chatFolder.trim() === '') {
-					new Notice(
-						`[Cerebro] No chat folder value found. Please set one in settings.`,
-					);
+					new Notice(`[Cerebro] No chat folder value found. Please set one in settings.`);
 					return;
 				}
 
@@ -354,7 +350,7 @@ export default class Cerebro extends Plugin {
 	}
 
 	addHR(editor: Editor, role: string) {
-		const newLine = `\n\n<hr class="__chatgpt_plugin">\n\n${this.headingPrefix}role::${role}\n\n`;
+		const newLine = `\n\n<hr class="__cerebro_plugin">\n\n${this.headingPrefix}role::${role}\n\n`;
 		editor.replaceRange(newLine, editor.getCursor());
 
 		// move cursor to end of file
@@ -416,8 +412,8 @@ export default class Cerebro extends Plugin {
 		 * Splits a string based on the separator
 		 */
 		try {
-			// <hr class="__chatgpt_plugin">
-			return text.split('<hr class="__chatgpt_plugin">');
+			// <hr class="__cerebro_plugin">
+			return text.split('<hr class="__cerebro_plugin">');
 		} catch (err) {
 			throw new Error('Error splitting messages' + err);
 		}
@@ -515,7 +511,6 @@ export default class Cerebro extends Plugin {
 
 		try {
 			return await this.openAIClient.inferTitle(messages, this.settings.inferTitleLanguage);
-
 		} catch (err) {
 			new Notice('[Cerebro] Error inferring title from messages');
 			throw new Error('[Cerebro] Error inferring title from messages' + err);
@@ -571,16 +566,13 @@ export default class Cerebro extends Plugin {
 			.replace('ss', paddedSecond);
 	}
 
-	// private hasNMessages(numOfMessages: Number, ): boolean {
-	//
-	// }
-
 	private async loadSettings(): Promise<void> {
 		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
 		logger.debug('Loaded settings', this.settings);
 	}
 
-	async saveSettings() {
+	public async saveSettings() {
+		logger.debug('[Cerebro] Saving settings');
 		await this.saveData(this.settings);
 	}
 }
