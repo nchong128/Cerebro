@@ -10,12 +10,9 @@ import pino from 'pino';
 import { OpenAIClient } from './models/openAIClient';
 import OpenAI from 'openai';
 import { Stream } from 'openai/src/streaming';
-import {
-	appendNonStreamingMessage,
-	completeAssistantResponse,
-	completeUserResponse,
-	moveCursorToEndOfFile,
-} from './utils/editor';
+import ChatController from './controller';
+import { AnthropicClient } from './models/anthropicClient';
+import { Chat } from 'openai/resources';
 
 const logger = pino({
 	level: 'info',
@@ -24,6 +21,8 @@ const logger = pino({
 export default class Cerebro extends Plugin {
 	public settings: CerebroSettings;
 	private openAIClient: OpenAIClient;
+	private anthropicClient: AnthropicClient;
+	private chatController: ChatController;
 
 	async onload(): Promise<void> {
 		logger.debug('[Cerebro] Adding status bar');
@@ -35,10 +34,15 @@ export default class Cerebro extends Plugin {
 		const streamManager = new StreamManager();
 
 		this.openAIClient = new OpenAIClient(this.settings.openAIApiKey);
+		this.anthropicClient = new AnthropicClient(this.settings.anthropicApiKey);
+		this.chatController = new ChatController(this.settings);
+
+		// This adds a settings tab so the user can configure various aspects of the plugin
+		this.addSettingTab(new SettingsTab(this.app, this));
 
 		// This adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
-			id: 'call-chatgpt-api',
+			id: 'cerebro-chat',
 			name: 'Chat',
 			icon: 'message-circle',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
@@ -74,7 +78,7 @@ export default class Cerebro extends Plugin {
 					);
 				}
 
-				const position = completeUserResponse(editor, this.headingPrefix);
+				const position = this.chatController.completeUserResponse(editor);
 
 				const chatCompletion = await this.openAIClient.createChatCompletion(
 					chatCompletionMessages,
@@ -102,10 +106,10 @@ export default class Cerebro extends Plugin {
 						finish_reason: response.choices[0].finish_reason,
 					});
 					if (unfinishedCodeBlock(responseStr)) responseStr = responseStr + '\n```';
-					appendNonStreamingMessage(editor, this.headingPrefix, responseStr);
+					this.chatController.appendNonStreamingMessage(editor, responseStr);
 				}
 
-				completeAssistantResponse(editor, this.headingPrefix);
+				this.chatController.completeAssistantResponse(editor);
 
 				statusBarItemEl.setText('');
 
@@ -152,16 +156,16 @@ export default class Cerebro extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'add-hr',
+			id: 'cerebro-add-hr',
 			name: 'Add divider',
 			icon: 'minus',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				this.addHR(editor, 'user');
+				this.chatController.addHR(editor);
 			},
 		});
 
 		this.addCommand({
-			id: 'add-comment-block',
+			id: 'cerebro-add-comment-block',
 			name: 'Add comment block',
 			icon: 'comment',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
@@ -182,7 +186,7 @@ export default class Cerebro extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'stop-streaming',
+			id: 'cerebro-stop-streaming',
 			name: 'Stop streaming',
 			icon: 'octagon',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
@@ -191,7 +195,7 @@ export default class Cerebro extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'infer-title',
+			id: 'cerebro-infer-title',
 			name: 'Infer title',
 			icon: 'subtitles',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
@@ -219,8 +223,8 @@ export default class Cerebro extends Plugin {
 
 		// grab highlighted text and move to new file in default chat format
 		this.addCommand({
-			id: 'move-to-chat',
-			name: 'Create new chat with highlighted text',
+			id: 'cerebro-move-to-chat',
+			name: 'Create new chat',
 			icon: 'highlighter',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				try {
@@ -268,7 +272,7 @@ export default class Cerebro extends Plugin {
 					}
 
 					activeView.editor.focus();
-					moveCursorToEndOfFile(activeView.editor);
+					this.chatController.moveCursorToEndOfFile(activeView.editor);
 				} catch (err) {
 					logger.error(`[Cerebro] Error in Create new chat with highlighted text`, err);
 					new Notice(
@@ -337,29 +341,13 @@ export default class Cerebro extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'clear-chat',
+			id: 'cerebro-clear-chat',
 			name: 'Clear chat (except frontmatter)',
 			icon: 'trash',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				this.clearConversationExceptFrontmatter(editor);
 			},
 		});
-
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SettingsTab(this.app, this));
-	}
-
-	addHR(editor: Editor, role: string) {
-		const newLine = `\n\n<hr class="__cerebro_plugin">\n\n${this.headingPrefix}role::${role}\n\n`;
-		editor.replaceRange(newLine, editor.getCursor());
-
-		// move cursor to end of file
-		const cursor = editor.getCursor();
-		const newCursor = {
-			line: cursor.line,
-			ch: cursor.ch + newLine.length,
-		};
-		editor.setCursor(newCursor);
 	}
 
 	getFrontmatter(view: MarkdownView): ChatFrontMatter {
@@ -478,16 +466,6 @@ export default class Cerebro extends Plugin {
 		} catch (err) {
 			throw new Error('Error extracting role and message' + err);
 		}
-	}
-
-	private get headingPrefix() {
-		const headingLevel = this.settings.headingLevel;
-		if (headingLevel === 0) {
-			return '';
-		} else if (headingLevel > 6) {
-			return '#'.repeat(6) + ' ';
-		}
-		return '#'.repeat(headingLevel) + ' ';
 	}
 
 	removeCommentsFromMessages(message: string) {
