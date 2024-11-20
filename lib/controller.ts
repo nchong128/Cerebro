@@ -101,8 +101,8 @@ export default class ChatController {
 	}
 
 	public updateSettings(settings: CerebroSettings) {
-		logger.info("Saving settings in ChatController");
+		logger.info('Saving settings in ChatController');
 		this.settings = settings;
-		this.headingPrefix = this.getHeadingPrefix(this.settings.headingLevel);	
+		this.headingPrefix = this.getHeadingPrefix(this.settings.headingLevel);
 	}
 }

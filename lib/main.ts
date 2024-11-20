@@ -48,9 +48,7 @@ export default class Cerebro extends Plugin {
 				// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 				statusBarItemEl.setText('[Cerebro] Calling API...');
 
-				if (Platform.isMobile) {
-					new Notice('[Cerebro] Calling API');
-				}
+				if (Platform.isMobile) new Notice('[Cerebro] Calling API');
 
 				// Retrieve frontmatter
 				const frontmatter = this.getFrontmatter(view);

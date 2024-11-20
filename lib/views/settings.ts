@@ -1,5 +1,7 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import Cerebro from '../main';
+import Anthropic from '@anthropic-ai/sdk';
+import { LLM } from 'lib/types';
 
 export class SettingsTab extends PluginSettingTab {
 	#plugin: Cerebro;
@@ -101,6 +103,24 @@ export class SettingsTab extends PluginSettingTab {
 					.setValue(this.#plugin.settings.dateFormat)
 					.onChange(async (value) => {
 						this.#plugin.settings.dateFormat = value;
+						await this.#plugin.saveSettings();
+					}),
+			);
+
+		new Setting(containerEl)
+			.setName('Default LLM provider')
+			.setDesc(
+				'Default LLM provider to chat with. You can still create a chat with other providers in the dropdown!',
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOptions({
+						OpenAI: 'OpenAI',
+						Anthropic: 'Anthropic',
+					})
+					.setValue('Anthropic')
+					.onChange(async (value) => {
+						this.#plugin.settings.defaultLLM = value as LLM;
 						await this.#plugin.saveSettings();
 					}),
 			);
