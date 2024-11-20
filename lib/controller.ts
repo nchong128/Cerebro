@@ -1,5 +1,10 @@
 import { CerebroSettings } from 'lib/types';
 import { Editor, EditorPosition } from 'obsidian';
+import pino from 'pino';
+
+const logger = pino({
+	level: 'info',
+});
 
 export default class ChatController {
 	private settings: CerebroSettings;
@@ -93,5 +98,11 @@ export default class ChatController {
 			return '#'.repeat(6) + ' ';
 		}
 		return '#'.repeat(headingLevel) + ' ';
+	}
+
+	public updateSettings(settings: CerebroSettings) {
+		logger.info("Saving settings in ChatController");
+		this.settings = settings;
+		this.headingPrefix = this.getHeadingPrefix(this.settings.headingLevel);	
 	}
 }

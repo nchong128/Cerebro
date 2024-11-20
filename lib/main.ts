@@ -12,7 +12,6 @@ import OpenAI from 'openai';
 import { Stream } from 'openai/src/streaming';
 import ChatController from './controller';
 import { AnthropicClient } from './models/anthropicClient';
-import { Chat } from 'openai/resources';
 
 const logger = pino({
 	level: 'info',
@@ -550,7 +549,8 @@ export default class Cerebro extends Plugin {
 	}
 
 	public async saveSettings() {
-		logger.debug('[Cerebro] Saving settings');
+		logger.info('[Cerebro] Saving settings');
+		this.chatController.updateSettings(this.settings);
 		await this.saveData(this.settings);
 	}
 }
