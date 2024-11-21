@@ -118,7 +118,7 @@ export class SettingsTab extends PluginSettingTab {
 						OpenAI: 'OpenAI',
 						Anthropic: 'Anthropic',
 					})
-					.setValue('Anthropic')
+					.setValue(this.#plugin.settings.defaultLLM)
 					.onChange(async (value) => {
 						this.#plugin.settings.defaultLLM = value as LLM;
 						await this.#plugin.saveSettings();
