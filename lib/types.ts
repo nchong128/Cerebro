@@ -1,14 +1,22 @@
 import { FrontMatterCache } from 'obsidian';
-
-import { ChatCompletionCreateParamsBase } from 'openai/src/resources/chat/completions';
+import OpenAI from 'openai';
 
 export type LLM = 'openAI' | 'anthropic';
 
-export interface CerebroSettings {
-	openAIApiKey: string;
-	anthropicApiKey: string;
+type OpenAISettings = {
+	apiKey: string;
 	defaultChatFrontmatter: string;
+};
+
+type AnthropicSettings = {
+	apiKey: string;
+	defaultChatFrontmatter: string;
+};
+
+export interface CerebroSettings {
 	defaultLLM: LLM;
+	openAISettings: OpenAISettings;
+	anthropicSettings: AnthropicSettings;
 	stream: boolean;
 	chatTemplateFolder: string;
 	chatFolder: string;
@@ -18,7 +26,7 @@ export interface CerebroSettings {
 	inferTitleLanguage: string;
 }
 
-export type ChatFrontMatter = Omit<ChatCompletionCreateParamsBase, 'messages'> & {
+export type ChatFrontmatter = Omit<OpenAI.ChatCompletionCreateParams, 'messages'> & {
 	title: string;
 	tags: FrontMatterCache;
 	system_commands: string[] | null;

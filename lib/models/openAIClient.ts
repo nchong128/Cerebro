@@ -1,5 +1,5 @@
 import OpenAI from 'openai';
-import { ChatFrontMatter } from '../types';
+import { ChatFrontmatter } from '../types';
 import { Notice } from 'obsidian';
 
 export class OpenAIClient {
@@ -25,7 +25,7 @@ export class OpenAIClient {
 			stream,
 			temperature,
 			user,
-		}: ChatFrontMatter,
+		}: ChatFrontmatter,
 	) {
 		return this.client.chat.completions.create({
 			messages,

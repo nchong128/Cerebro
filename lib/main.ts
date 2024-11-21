@@ -4,7 +4,7 @@ import { StreamManager } from './stream';
 import { createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor } from 'lib/helpers';
 import { SettingsTab } from './views/settings';
 import { ChatTemplatesHandler } from './views/chatTemplates';
-import { CerebroSettings, ChatFrontMatter } from './types';
+import { CerebroSettings, ChatFrontmatter } from './types';
 import { DEFAULT_SETTINGS, YAML_FRONTMATTER_REGEX } from './constants';
 import pino from 'pino';
 import { OpenAIClient } from './models/openAIClient';
@@ -32,14 +32,77 @@ export default class Cerebro extends Plugin {
 
 		const streamManager = new StreamManager();
 
-		this.openAIClient = new OpenAIClient(this.settings.openAIApiKey);
-		this.anthropicClient = new AnthropicClient(this.settings.anthropicApiKey);
+		this.openAIClient = new OpenAIClient(this.settings.openAISettings.apiKey);
+		this.anthropicClient = new AnthropicClient(this.settings.anthropicSettings.apiKey);
 		this.chatController = new ChatController(this.settings);
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SettingsTab(this.app, this));
 
-		// This adds an editor command that can perform some operation on the current editor instance
+		// Grab highlighted text and move to new file in default chat format. If no text highlighted, creates an empty chat.
+		this.addCommand({
+			id: 'cerebro-create-new-chat',
+			name: 'Create new chat',
+			icon: 'highlighter',
+			// TODO: make callback to allow creating new chat without being in an editor
+			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				try {
+					const selectedText = editor.getSelection();
+
+					if (!this.settings.chatFolder || this.settings.chatFolder.trim() === '') {
+						new Notice(
+							'[Cerebro] No chat folder value found. Please set one in settings.',
+						);
+						return;
+					}
+
+					if (!(await this.app.vault.adapter.exists(this.settings.chatFolder))) {
+						const result = await createFolderModal(
+							this.app,
+							this.app.vault,
+							'chatFolder',
+							this.settings.chatFolder,
+						);
+						if (!result) {
+							new Notice(
+								`[Cerebro] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
+							);
+							return;
+						}
+					}
+
+					const filePath = `${this.settings.chatFolder}/${this.getDate(
+						new Date(),
+						this.settings.dateFormat,
+					)}.md`;
+
+					logger.info(`default llm is ${this.settings.defaultLLM}`);
+					const fileContent = `${this.settings.defaultLLM == 'openAI' ? this.settings.openAISettings.defaultChatFrontmatter : this.settings.anthropicSettings.defaultChatFrontmatter}\n\n${selectedText}`;
+
+					const newFile = await this.app.vault.create(filePath, fileContent);
+
+					// Open new file
+					await this.app.workspace.openLinkText(newFile.basename, '', true, {
+						state: { mode: 'source' },
+					});
+					const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+					if (!activeView) {
+						new Notice('No active markdown editor found.');
+						return;
+					}
+
+					activeView.editor.focus();
+					this.chatController.moveCursorToEndOfFile(activeView.editor);
+				} catch (err) {
+					logger.error(`[Cerebro] Error in Create new chat with highlighted text`, err);
+					new Notice(
+						`[Cerebro] Error in Create new chat with highlighted text, check console`,
+					);
+				}
+			},
+		});
+
+		// Adds an editor command that can perform some operation on the current editor instance
 		this.addCommand({
 			id: 'cerebro-chat',
 			name: 'Chat',
@@ -218,67 +281,6 @@ export default class Cerebro extends Plugin {
 			},
 		});
 
-		// grab highlighted text and move to new file in default chat format
-		this.addCommand({
-			id: 'cerebro-move-to-chat',
-			name: 'Create new chat',
-			icon: 'highlighter',
-			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				try {
-					const selectedText = editor.getSelection();
-
-					if (!this.settings.chatFolder || this.settings.chatFolder.trim() === '') {
-						new Notice(
-							`[Cerebro] No chat folder value found. Please set one in settings.`,
-						);
-						return;
-					}
-
-					if (!(await this.app.vault.adapter.exists(this.settings.chatFolder))) {
-						const result = await createFolderModal(
-							this.app,
-							this.app.vault,
-							'chatFolder',
-							this.settings.chatFolder,
-						);
-						if (!result) {
-							new Notice(
-								`[Cerebro] No chat folder found. One must be created to use plugin. Set one in settings and make sure it exists.`,
-							);
-							return;
-						}
-					}
-
-					const newFile = await this.app.vault.create(
-						`${this.settings.chatFolder}/${this.getDate(
-							new Date(),
-							this.settings.dateFormat,
-						)}.md`,
-						`${this.settings.defaultChatFrontmatter}\n\n${selectedText}`,
-					);
-
-					// open new file
-					await this.app.workspace.openLinkText(newFile.basename, '', true, {
-						state: { mode: 'source' },
-					});
-					const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-
-					if (!activeView) {
-						new Notice('No active markdown editor found.');
-						return;
-					}
-
-					activeView.editor.focus();
-					this.chatController.moveCursorToEndOfFile(activeView.editor);
-				} catch (err) {
-					logger.error(`[Cerebro] Error in Create new chat with highlighted text`, err);
-					new Notice(
-						`[Cerebro] Error in Create new chat with highlighted text, check console`,
-					);
-				}
-			},
-		});
-
 		this.addCommand({
 			id: 'choose-chat-template',
 			name: 'Create new chat from template',
@@ -347,7 +349,7 @@ export default class Cerebro extends Plugin {
 		});
 	}
 
-	getFrontmatter(view: MarkdownView): ChatFrontMatter {
+	getFrontmatter(view: MarkdownView): ChatFrontmatter {
 		/**
 		 * Retrieves the frontmatter from a markdown file
 		 */
