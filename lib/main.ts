@@ -4,14 +4,16 @@ import { StreamManager } from './stream';
 import { createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor } from 'lib/helpers';
 import { SettingsTab } from './views/settings';
 import { ChatTemplatesHandler } from './views/chatTemplates';
-import { CerebroSettings, ChatFrontmatter } from './types';
-import { DEFAULT_SETTINGS, YAML_FRONTMATTER_REGEX } from './constants';
+import { YAML_FRONTMATTER_REGEX } from './constants';
+import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
+import { getFrontmatter as getFrontmatterFromSettings } from './settings';
 import pino from 'pino';
 import { OpenAIClient } from './models/openAIClient';
 import OpenAI from 'openai';
 import { Stream } from 'openai/src/streaming';
 import ChatController from './controller';
 import { AnthropicClient } from './models/anthropicClient';
+import { ChatFrontmatter } from './types';
 
 const logger = pino({
 	level: 'info',
@@ -32,8 +34,10 @@ export default class Cerebro extends Plugin {
 
 		const streamManager = new StreamManager();
 
-		this.openAIClient = new OpenAIClient(this.settings.openAISettings.apiKey);
-		this.anthropicClient = new AnthropicClient(this.settings.anthropicSettings.apiKey);
+		this.openAIClient = new OpenAIClient(this.settings.LLMSpecificSettings['OpenAI'].apiKey);
+		this.anthropicClient = new AnthropicClient(
+			this.settings.LLMSpecificSettings['Anthropic'].apiKey,
+		);
 		this.chatController = new ChatController(this.settings);
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -76,9 +80,8 @@ export default class Cerebro extends Plugin {
 						this.settings.dateFormat,
 					)}.md`;
 
-					logger.info(`default llm is ${this.settings.defaultLLM}`);
-					const fileContent = `${this.settings.defaultLLM == 'OpenAI' ? this.settings.openAISettings.defaultChatFrontmatter : this.settings.anthropicSettings.defaultChatFrontmatter}\n\n${selectedText}`;
-
+					const frontmatter = getFrontmatterFromSettings(this.settings);
+					const fileContent = `${frontmatter}\n\n${selectedText}`;
 					const newFile = await this.app.vault.create(filePath, fileContent);
 
 					// Open new file
