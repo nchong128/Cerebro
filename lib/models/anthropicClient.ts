@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ChatFrontMatter } from 'lib/types';
+import { ChatFrontmatter } from 'lib/types';
 
 export class AnthropicClient {
 	private client: Anthropic;
@@ -24,7 +24,7 @@ export class AnthropicClient {
 			stream,
 			temperature,
 			user,
-		}: ChatFrontMatter,
+		}: ChatFrontmatter,
 	) {
 		return this.client.chat.completions.create({
 			messages,
