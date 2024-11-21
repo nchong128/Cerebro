@@ -1,7 +1,7 @@
 import { FrontMatterCache } from 'obsidian';
 import OpenAI from 'openai';
 
-export type LLM = 'openAI' | 'anthropic';
+export type LLM = 'OpenAI' | 'Anthropic';
 
 type OpenAISettings = {
 	apiKey: string;

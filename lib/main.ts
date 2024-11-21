@@ -77,7 +77,7 @@ export default class Cerebro extends Plugin {
 					)}.md`;
 
 					logger.info(`default llm is ${this.settings.defaultLLM}`);
-					const fileContent = `${this.settings.defaultLLM == 'openAI' ? this.settings.openAISettings.defaultChatFrontmatter : this.settings.anthropicSettings.defaultChatFrontmatter}\n\n${selectedText}`;
+					const fileContent = `${this.settings.defaultLLM == 'OpenAI' ? this.settings.openAISettings.defaultChatFrontmatter : this.settings.anthropicSettings.defaultChatFrontmatter}\n\n${selectedText}`;
 
 					const newFile = await this.app.vault.create(filePath, fileContent);
 
