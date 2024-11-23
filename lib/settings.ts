@@ -1,9 +1,10 @@
 import { LLM } from './types';
 
-export type LLMSettings = {
+export interface LLMSettings {
 	apiKey: string;
 	defaultChatFrontmatter: string;
-};
+	model: string;
+}
 
 export interface CerebroSettings {
 	defaultLLM: LLM;
@@ -22,12 +23,14 @@ export const DEFAULT_SETTINGS: CerebroSettings = {
 		OpenAI: {
 			apiKey: 'default',
 			defaultChatFrontmatter:
-				"---\nsystem_commands: ['I am a helpful assistant.']\ntemperature: 0\ntop_p: 1\nmax_tokens: 1024\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nmodel: gpt-3.5-turbo\n---",
+				"---\nsystem_commands: ['I am a helpful assistant.']\ntemperature: 0\ntop_p: 1\nmax_tokens: 1024\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nmodel: gpt-3.5-turbo\nllm: OpenAI\n---",
+			model: 'gpt-3.5-turbo',
 		},
 		Anthropic: {
 			apiKey: 'default',
 			defaultChatFrontmatter:
-				'---\nsystem: []\ntemperature: 1.0\nmax_tokens: 1024\nstream: true\nstop: null\nmodel: claude-3-5-haiku-latest\n---',
+				'---\nsystem: []\ntemperature: 1.0\nmax_tokens: 1024\nstream: true\nstop: null\nmodel: claude-3-5-haiku-latest\nllm: Anthropic\n ---',
+			model: 'claude-3-5-haiku-latest',
 		},
 	},
 	defaultLLM: 'Anthropic',
