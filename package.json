@@ -10,7 +10,8 @@
 		"format": "prettier --check .",
 		"format:fix": "prettier --write .",
 		"lint": "eslint lib/ --max-warnings=0",
-		"lint:fix": "eslint lib/ --fix"
+		"lint:fix": "eslint lib/ --fix",
+		"fix-all": "npm run format:fix && npm run lint:fix"
 	},
 	"keywords": [],
 	"author": "Nick Chong",
