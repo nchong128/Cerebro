@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
 import { Editor, MarkdownView, Notice, Platform, Plugin } from 'obsidian';
-import { StreamManager } from './stream';
-import { createFolderModal, unfinishedCodeBlock, writeInferredTitleToEditor } from 'lib/helpers';
+import { createFolderModal, sanitizeTitle, writeInferredTitleToEditor } from 'lib/helpers';
 import { SettingsTab } from './views/settings';
 import { ChatTemplatesHandler } from './views/chatTemplates';
 import { YAML_FRONTMATTER_REGEX } from './constants';
@@ -9,11 +8,10 @@ import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
 import { getFrontmatter as getFrontmatterFromSettings } from './settings';
 import pino from 'pino';
 import { OpenAIClient } from './models/openAIClient';
-import OpenAI from 'openai';
-import { Stream } from 'openai/src/streaming';
-import ChatController from './controller';
+import ChatInterface from './chatInterface';
 import { AnthropicClient } from './models/anthropicClient';
-import { ChatFrontmatter } from './types';
+import { LLM, Message } from './types';
+import { LLMClient } from './models/client';
 
 const logger = pino({
 	level: 'info',
@@ -21,9 +19,7 @@ const logger = pino({
 
 export default class Cerebro extends Plugin {
 	public settings: CerebroSettings;
-	private openAIClient: OpenAIClient;
-	private anthropicClient: AnthropicClient;
-	private chatController: ChatController;
+	private llmClients: Record<LLM, LLMClient>;
 
 	async onload(): Promise<void> {
 		logger.debug('[Cerebro] Adding status bar');
@@ -32,13 +28,10 @@ export default class Cerebro extends Plugin {
 		logger.debug('[Cerebro] Loading settings');
 		await this.loadSettings();
 
-		const streamManager = new StreamManager();
-
-		this.openAIClient = new OpenAIClient(this.settings.LLMSpecificSettings['OpenAI'].apiKey);
-		this.anthropicClient = new AnthropicClient(
-			this.settings.LLMSpecificSettings['Anthropic'].apiKey,
-		);
-		this.chatController = new ChatController(this.settings);
+		this.llmClients = {
+			OpenAI: new OpenAIClient(this.settings.LLMSpecificSettings['OpenAI'].apiKey),
+			Anthropic: new AnthropicClient(this.settings.LLMSpecificSettings['Anthropic'].apiKey),
+		};
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
 		this.addSettingTab(new SettingsTab(this.app, this));
@@ -50,6 +43,8 @@ export default class Cerebro extends Plugin {
 			icon: 'highlighter',
 			// TODO: make callback to allow creating new chat without being in an editor
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				const chatInterface = new ChatInterface(this.settings, editor, view);
+
 				try {
 					const selectedText = editor.getSelection();
 
@@ -95,7 +90,7 @@ export default class Cerebro extends Plugin {
 					}
 
 					activeView.editor.focus();
-					this.chatController.moveCursorToEndOfFile(activeView.editor);
+					chatInterface.moveCursorToEndOfFile(activeView.editor);
 				} catch (err) {
 					logger.error(`[Cerebro] Error in Create new chat with highlighted text`, err);
 					new Notice(
@@ -111,74 +106,29 @@ export default class Cerebro extends Plugin {
 			name: 'Chat',
 			icon: 'message-circle',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
+				// By creating a new ChatInterface in each invocation, we should be able to work with each view better
+				const chatInterface = new ChatInterface(this.settings, editor, view);
+
 				// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 				statusBarItemEl.setText('[Cerebro] Calling API...');
 
 				if (Platform.isMobile) new Notice('[Cerebro] Calling API');
 
-				// Retrieve frontmatter
-				const frontmatter = this.getFrontmatter(view);
+				const frontmatter = chatInterface.getFrontmatter(this.app);
+				const messages = chatInterface.getMessages();
+				chatInterface.completeUserResponse();
 
-				// Retrieve and process messages
-				const bodyWithoutYML = this.removeYMLFromMessage(editor.getValue());
-				let messages = this.splitMessages(bodyWithoutYML);
-				messages = messages.map((message) => this.removeCommentsFromMessages(message));
-
-				const chatCompletionMessages = messages.map((message) =>
-					this.extractRoleAndMessage(message),
-				);
-
-				if (frontmatter.system_commands) {
-					const systemCommands = frontmatter.system_commands;
-					// Prepend system commands to messages
-					chatCompletionMessages.unshift(
-						...systemCommands.map((command): OpenAI.Chat.ChatCompletionMessageParam => {
-							return {
-								role: 'system',
-								content: command,
-							};
-						}),
-					);
-				}
-
-				const position = this.chatController.completeUserResponse(editor);
-
-				const chatCompletion = await this.openAIClient.createChatCompletion(
-					chatCompletionMessages,
-					frontmatter,
-				);
-
-				let responseStr;
-				if (frontmatter.stream) {
-					const chatCompletionStream =
-						chatCompletion as unknown as Stream<OpenAI.Chat.ChatCompletion>;
-
-					const { fullResponse, finishReason } = await streamManager.streamOpenAIResponse(
-						chatCompletionStream,
-						editor,
-						position,
-					);
-					responseStr = fullResponse;
-					logger.info('[Cerebro] Model finished generating', {
-						finish_reason: finishReason,
-					});
-				} else {
-					const response = chatCompletion as OpenAI.ChatCompletion;
-					responseStr = response.choices[0].message.content || 'No response';
-					logger.info('[Cerebro] Model finished generating', {
-						finish_reason: response.choices[0].finish_reason,
-					});
-					if (unfinishedCodeBlock(responseStr)) responseStr = responseStr + '\n```';
-					this.chatController.appendNonStreamingMessage(editor, responseStr);
-				}
-
-				this.chatController.completeAssistantResponse(editor);
-
+				// Streaming requires constant work with the editor and the LLM client
+				// This is something the plugin should be managing but only the LLM should work with its internals
+				// Plugin passes ChatInterface for it to work with the LLM client. LLM retrieves the chunks
+				// and passes into the ChatInterface to handle.
+				const client = this.llmClients[frontmatter.llm];
+				const response = await client.chat(messages, frontmatter, chatInterface);
+				chatInterface.completeAssistantResponse();
 				statusBarItemEl.setText('');
 
 				if (this.settings.autoInferTitle) {
-					const messagesWithResponse = messages.concat(responseStr);
-
+					const messagesWithResponse = messages.concat(response);
 					const title = view?.file?.basename;
 
 					if (
@@ -190,7 +140,10 @@ export default class Cerebro extends Plugin {
 						statusBarItemEl.setText('[Cerebro] Calling API...');
 
 						try {
-							const title = await this.inferTitleFromMessages(messagesWithResponse);
+							const title = await this.inferTitleFromMessages(
+								messagesWithResponse,
+								client,
+							);
 							if (title) {
 								logger.info(
 									`[Cerebro] Automatically inferred title: ${title}. Changing file name...`,
@@ -223,7 +176,8 @@ export default class Cerebro extends Plugin {
 			name: 'Add divider',
 			icon: 'minus',
 			editorCallback: (editor: Editor, view: MarkdownView) => {
-				this.chatController.addHR(editor);
+				const chatInterface = new ChatInterface(this.settings, editor, view);
+				chatInterface.addHR();
 			},
 		});
 
@@ -248,29 +202,25 @@ export default class Cerebro extends Plugin {
 			},
 		});
 
-		this.addCommand({
-			id: 'cerebro-stop-streaming',
-			name: 'Stop streaming',
-			icon: 'octagon',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				streamManager.stopStreaming();
-			},
-		});
+		// this.addCommand({
+		// 	id: 'cerebro-stop-streaming',
+		// 	name: 'Stop streaming',
+		// 	icon: 'octagon',
+		// 	editorCallback: (editor: Editor, view: MarkdownView) => {
+		// 		streamManager.stopStreaming();
+		// 	},
+		// });
 
 		this.addCommand({
 			id: 'cerebro-infer-title',
 			name: 'Infer title',
 			icon: 'subtitles',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				const bodyWithoutYML = this.removeYMLFromMessage(editor.getValue());
-				let messages = this.splitMessages(bodyWithoutYML);
-				messages = messages.map((message) => {
-					return this.removeCommentsFromMessages(message);
-				});
-
-				statusBarItemEl.setText('[Cerebro] Calling API...');
-				const title = await this.inferTitleFromMessages(messages);
-				statusBarItemEl.setText('');
+				const chatInterface = new ChatInterface(this.settings, editor, view);
+				const frontmatter = chatInterface.getFrontmatter(this.app);
+				const client = this.llmClients[frontmatter.llm];
+				const messages = chatInterface.getMessages();
+				const title = await this.inferTitleFromMessages(messages, client);
 
 				if (title) {
 					await writeInferredTitleToEditor(
@@ -352,63 +302,6 @@ export default class Cerebro extends Plugin {
 		});
 	}
 
-	getFrontmatter(view: MarkdownView): ChatFrontmatter {
-		/**
-		 * Retrieves the frontmatter from a markdown file
-		 */
-		try {
-			// Retrieve frontmatter
-			const noteFile = this.app.workspace.getActiveFile();
-
-			if (!noteFile) {
-				throw new Error('No active file');
-			}
-
-			const metaMatter = this.app.metadataCache.getFileCache(noteFile)?.frontmatter;
-
-			const shouldStream =
-				metaMatter?.stream !== undefined
-					? metaMatter.stream // If defined in frontmatter, use its value.
-					: this.settings.stream !== undefined
-						? this.settings.stream // If not defined in frontmatter but exists globally, use its value.
-						: true; // Otherwise fallback on true.
-
-			const temperature =
-				metaMatter?.temperature !== undefined ? metaMatter.temperature : 0.3;
-
-			return {
-				title: metaMatter?.title || view.file?.basename,
-				tags: metaMatter?.tags || [],
-				model: metaMatter?.model || 'gpt-3.5-turbo',
-				temperature: temperature,
-				top_p: metaMatter?.top_p || 1,
-				presence_penalty: metaMatter?.presence_penalty || 0,
-				frequency_penalty: metaMatter?.frequency_penalty || 0,
-				stream: shouldStream,
-				max_tokens: metaMatter?.max_tokens || 512,
-				stop: metaMatter?.stop || null,
-				n: metaMatter?.n || 1,
-				logit_bias: metaMatter?.logit_bias || null,
-				user: metaMatter?.user || null,
-				system_commands: metaMatter?.system_commands || null,
-			};
-		} catch (err) {
-			throw new Error('Error getting frontmatter');
-		}
-	}
-
-	splitMessages(text: string) {
-		/**
-		 * Splits a string based on the separator
-		 */
-		try {
-			// <hr class="__cerebro_plugin">
-			return text.split('<hr class="__cerebro_plugin">');
-		} catch (err) {
-			throw new Error('Error splitting messages' + err);
-		}
-	}
-
 	clearConversationExceptFrontmatter(editor: Editor) {
 		try {
 			// Retrieve frontmatter
@@ -441,56 +334,13 @@ export default class Cerebro extends Plugin {
 		}
 	}
 
-	removeYMLFromMessage(message: string) {
-		/**
-		 * Removes any YAML content from a message
-		 */
-		try {
-			return message.replace(YAML_FRONTMATTER_REGEX, '');
-		} catch (err) {
-			throw new Error('Error removing YML from message' + err);
-		}
-	}
-
-	extractRoleAndMessage(message: string): OpenAI.Chat.ChatCompletionMessageParam {
-		try {
-			if (message.includes('role::')) {
-				const role = message.split('role::')[1].split('\n')[0].trim();
-				const content = message.split('role::')[1].split('\n').slice(1).join('\n').trim();
-
-				if (role === 'assistant' || role === 'system' || role === 'user') {
-					return { role, content };
-				}
-				throw new Error('Unknown role ' + role);
-			} else {
-				return { role: 'user', content: message };
-			}
-		} catch (err) {
-			throw new Error('Error extracting role and message' + err);
-		}
-	}
-
-	removeCommentsFromMessages(message: string) {
-		/**
-		 * Removes any comments from the messages
-		 */
-		try {
-			// Comment block in form of =begin-comment and =end-comment
-			const commentBlock = /=begin-comment[\s\S]*?=end-comment/g;
-
-			// Remove comment block
-			return message.replace(commentBlock, '');
-		} catch (err) {
-			throw new Error('Error removing comments from messages' + err);
-		}
-	}
-
-	async inferTitleFromMessages(messages: string[]) {
-		logger.info('[Cerebro] Inferring Title');
+	private async inferTitleFromMessages(messages: Message[], client: LLMClient): Promise<string> {
+		logger.info('[Cerebro] Inferring title');
 		new Notice('[Cerebro] Inferring title from messages...');
 
 		try {
-			return await this.openAIClient.inferTitle(messages, this.settings.inferTitleLanguage);
+			const title = await client.inferTitle(messages, this.settings.inferTitleLanguage);
+			return sanitizeTitle(title);
 		} catch (err) {
 			new Notice('[Cerebro] Error inferring title from messages');
 			throw new Error('[Cerebro] Error inferring title from messages' + err);
@@ -553,7 +403,6 @@ export default class Cerebro extends Plugin {
 
 	public async saveSettings() {
 		logger.info('[Cerebro] Saving settings');
-		this.chatController.updateSettings(this.settings);
 		await this.saveData(this.settings);
 	}
 }

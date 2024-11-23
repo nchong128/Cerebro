@@ -1,7 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ChatFrontmatter } from 'lib/types';
+import { ChatFrontmatter, Message } from 'lib/types';
+import { Notice } from 'obsidian';
+import OpenAI from 'openai';
+import { LLMClient } from './client';
 
-export class AnthropicClient {
+export class AnthropicClient implements LLMClient {
 	private client: Anthropic;
 
 	constructor(apiKey: string) {
@@ -10,6 +13,8 @@ export class AnthropicClient {
 			dangerouslyAllowBrowser: true,
 		});
 	}
+
+	public chat(messages: Message[], frontmatter: ChatFrontmatter): void {}
 
 	public async createChatCompletion(
 		messages: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -41,12 +46,10 @@ export class AnthropicClient {
 		});
 	}
 
-	public async inferTitle(messages: string[], inferTitleLanguage: string) {
+	public async inferTitle(messages: string[], inferTitleLanguage: string): Promise<string> {
 		if (messages.length < 2) {
 			new Notice('Not enough messages to infer title. Minimum 2 messages.');
-			return;
 		}
-
 		const prompt = `Infer title from the summary of the content of these messages. The title **cannot** contain any of the following characters: colon, back slash or forward slash. Just return the title. Write the title in ${inferTitleLanguage}. \nMessages:\n\n${JSON.stringify(messages)}`;
 
 		const titleMessage: OpenAI.Chat.ChatCompletionMessageParam[] = [
@@ -65,15 +68,10 @@ export class AnthropicClient {
 		});
 
 		const title = response.choices[0].message.content;
-
 		if (!title) {
 			throw new Error('Title unable to be inferred');
 		}
 
-		return title
-			.replace(/[:/\\]/g, '')
-			.replace('Title', '')
-			.replace('title', '')
-			.trim();
+		return title;
 	}
 }
