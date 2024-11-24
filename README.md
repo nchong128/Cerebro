@@ -14,7 +14,7 @@ https://user-images.githubusercontent.com/3282661/223005882-6632c997-b9a6-445b-8
 
 -   Chat from _any_ MD note
 -   Create Chat _Templates_ for sharing and running similar scenarios. Check out the companion repo [chatgpt-md-templates](https://github.com/bramses/chatgpt-md-templates) for some templates!
--   As _minimal boilerplate as possible_, only two required in fact! `<hr class="__cerebro_plugin">` and `role::system|assistant|user`
+-   As _minimal boilerplate as possible_, only two required in fact! `<hr class="${CSSAssets.HR}">` and `role::system|assistant|user`
 -   Use _frontmatter_ to change variables for the ChatGPT API
 -   _Stream_ characters to Obsidian, creating a realtime feel
 -   Uses _regular Markdown_. Meaning everything from _lists_ to _code blocks_ from ChatGPT _will render_!
@@ -66,7 +66,7 @@ Stops the stream. Useful if you want to stop the stream if you don't like where 
 
 Add a ChatGPT MD Horizontal Rule and `role::user`.
 
-**!! Note: both `role::system|assistant|user` AND `<hr class="__cerebro_plugin">` are REQUIRED for the plugin to work!!**
+**!! Note: both `role::system|assistant|user` AND `<hr class="${CSSAssets.HR}">` are REQUIRED for the plugin to work!!**
 
 ## Installation
 

@@ -2,7 +2,7 @@ import { ChatFrontmatter, Message } from 'lib/types';
 import { Editor, EditorPosition, MarkdownView } from 'obsidian';
 import pino from 'pino';
 import { App } from 'obsidian';
-import { YAML_FRONTMATTER_REGEX } from './constants';
+import { assistantHeader, CSSAssets, userHeader, YAML_FRONTMATTER_REGEX } from './constants';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
 
 const logger = pino({
@@ -26,8 +26,8 @@ const splitMessages = (text: string): string[] => {
 	 * Splits a string based on the separator
 	 */
 	try {
-		// <hr class="__cerebro_plugin">
-		return text.split('<hr class="__cerebro_plugin">');
+		// <hr class="${CSSAssets.HR}">
+		return text.split('<hr class="${CSSAssets.HR}">');
 	} catch (err) {
 		throw new Error('Error splitting messages' + err);
 	}
@@ -88,7 +88,7 @@ export default class ChatInterface {
 	}
 
 	public addHR(): void {
-		const newLine = `\n\n<hr class="__cerebro_plugin">\n\n${this.headingPrefix}role::user\n\n`;
+		const newLine = `\n<hr class="${CSSAssets.HR}">\n${userHeader(this.settings.headingLevel)}\n`;
 		this.editor.replaceRange(newLine, this.editor.getCursor());
 
 		// Move cursor to end of file
@@ -100,14 +100,14 @@ export default class ChatInterface {
 		this.editor.setCursor(newCursor);
 	}
 
-	public completeUserResponse(): void {
+	public completeUserResponse(assistantName: string): void {
 		/**
 		 * 1. Moves cursor to end of line
 		 * 2. Places divider
 		 * 3. Completes the user's response by placing the assistant's header
 		 */
 		this.moveCursorToEndOfFile(this.editor);
-		const newLine = `\n\n<hr class="__cerebro_plugin">\n\n${this.headingPrefix}role::assistant\n\n`;
+		const newLine = `\n\n<hr class="${CSSAssets.HR}">\n${assistantHeader(this.settings.headingLevel, assistantName)}\n`;
 		this.editor.replaceRange(newLine, this.editor.getCursor());
 		this.editorPosition = this.moveCursorToEndOfLine(this.editor, newLine);
 	}
@@ -118,7 +118,7 @@ export default class ChatInterface {
 		 * 2. Completes the assistants response by placing the user's header
 		 * 3. Moves cursor to end of line
 		 */
-		const newLine = `\n\n<hr class="__cerebro_plugin">\n\n${this.headingPrefix}role::user\n\n`;
+		const newLine = `\n\n<hr class="${CSSAssets.HR}">\n${userHeader(this.settings.headingLevel)}\n`;
 		this.editor.replaceRange(newLine, this.editor.getCursor());
 		this.editorPosition = this.moveCursorToEndOfLine(this.editor, newLine);
 	}
@@ -128,8 +128,6 @@ export default class ChatInterface {
 		 * 1. Places assistant's response
 		 * 2. Moves cursor to end of line
 		 */
-
-		// const newLine = `\n\n<hr class="__cerebro_plugin">\n\n${headingPrefix}role::assistant\n\n${message}\n\n`;
 		this.editor.replaceRange(message, this.editor.getCursor());
 		this.editorPosition = this.moveCursorToEndOfLine(this.editor, message);
 	};
@@ -208,7 +206,7 @@ export default class ChatInterface {
 			const model =
 				metaMatter?.model !== undefined
 					? metaMatter.model
-					: this.settings.LLMSpecificSettings[this.settings.defaultLLM].model;
+					: this.settings.llmSettings[this.settings.defaultLLM].model;
 
 			return {
 				llm,
