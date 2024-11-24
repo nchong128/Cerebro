@@ -29,7 +29,7 @@ export const DEFAULT_SETTINGS: CerebroSettings = {
 		Anthropic: {
 			apiKey: 'default',
 			defaultChatFrontmatter:
-				'---\nsystem: []\ntemperature: 1.0\nmax_tokens: 1024\nstream: true\nstop: null\nmodel: claude-3-5-haiku-latest\nllm: Anthropic\n ---',
+				'---\nsystem: []\ntemperature: 1.0\nmax_tokens: 1024\nstream: true\nstop: null\nmodel: claude-3-5-haiku-latest\nllm: Anthropic\n---',
 			model: 'claude-3-5-haiku-latest',
 		},
 	},

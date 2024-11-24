@@ -79,7 +79,7 @@ export class OpenAIClient implements LLMClient {
 			chatInterface.appendNonStreamingMessage(responseStr);
 		} else {
 			const chatCompletionStream = chatResponse as Stream<OpenAI.Chat.ChatCompletionChunk>;
-			const { fullResponse, finishReason } = await this.stream(
+			const { fullResponse, finishReason } = await this.streamChatCompletion(
 				chatCompletionStream,
 				chatInterface,
 			);
@@ -93,7 +93,7 @@ export class OpenAIClient implements LLMClient {
 		};
 	}
 
-	private async stream(
+	private async streamChatCompletion(
 		chatCompletionStream: Stream<OpenAI.Chat.ChatCompletionChunk>,
 		chatInterface: ChatInterface,
 	): Promise<{
