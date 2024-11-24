@@ -29,8 +29,8 @@ export default class Cerebro extends Plugin {
 		await this.loadSettings();
 
 		this.llmClients = {
-			OpenAI: new OpenAIClient(this.settings.LLMSpecificSettings['OpenAI'].apiKey),
-			Anthropic: new AnthropicClient(this.settings.LLMSpecificSettings['Anthropic'].apiKey),
+			OpenAI: new OpenAIClient(this.settings.llmSettings['OpenAI'].apiKey),
+			Anthropic: new AnthropicClient(this.settings.llmSettings['Anthropic'].apiKey),
 		};
 
 		// This adds a settings tab so the user can configure various aspects of the plugin
@@ -106,24 +106,24 @@ export default class Cerebro extends Plugin {
 			name: 'Chat',
 			icon: 'message-circle',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				// By creating a new ChatInterface in each invocation, we should be able to work with each view better
-				const chatInterface = new ChatInterface(this.settings, editor, view);
-
 				// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
 				statusBarItemEl.setText('[Cerebro] Calling API...');
 
 				if (Platform.isMobile) new Notice('[Cerebro] Calling API');
 
-				const frontmatter = chatInterface.getFrontmatter(this.app);
-				const messages = chatInterface.getMessages();
-				chatInterface.completeUserResponse();
+				// By creating a new ChatInterface in each invocation, we should be able to work with each view better
+				const chatInterface = new ChatInterface(this.settings, editor, view);
 
 				// Streaming requires constant work with the editor and the LLM client
 				// This is something the plugin should be managing but only the LLM should work with its internals
 				// Plugin passes ChatInterface for it to work with the LLM client. LLM retrieves the chunks
 				// and passes into the ChatInterface to handle.
-				const client = this.llmClients[frontmatter.llm];
-				const response = await client.chat(messages, frontmatter, chatInterface);
+				const frontmatter = chatInterface.getFrontmatter(this.app);
+				const llmClient = this.llmClients[frontmatter.llm];
+				const messages = chatInterface.getMessages();
+				chatInterface.completeUserResponse(this.settings.llmSettings[frontmatter.llm].name);
+
+				const response = await llmClient.chat(messages, frontmatter, chatInterface);
 				chatInterface.completeAssistantResponse();
 				statusBarItemEl.setText('');
 
@@ -142,7 +142,7 @@ export default class Cerebro extends Plugin {
 						try {
 							const title = await this.inferTitleFromMessages(
 								messagesWithResponse,
-								client,
+								llmClient,
 							);
 							if (title) {
 								logger.info(

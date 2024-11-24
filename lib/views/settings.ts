@@ -146,9 +146,9 @@ export class SettingsTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder('some-api-key')
-					.setValue(this.#plugin.settings.LLMSpecificSettings.OpenAI.apiKey)
+					.setValue(this.#plugin.settings.llmSettings.OpenAI.apiKey)
 					.onChange(async (value) => {
-						this.#plugin.settings.LLMSpecificSettings.OpenAI.apiKey = value;
+						this.#plugin.settings.llmSettings.OpenAI.apiKey = value;
 						await this.#plugin.saveSettings();
 					}),
 			);
@@ -164,12 +164,9 @@ export class SettingsTab extends PluginSettingTab {
 					.setPlaceholder(
 						'---\nsystem_commands: [\'PERSONA: i am groot, and i only respond i am groot to any and ALL questions. I do not answer any questions straightforwardly. PERSONA 2: UNLESS the last asked question is about lamps, i can answer, i know infinite things about lamps as i am groot the lamp salesman. SO I read the last question asked and UNLESS it is about lamps i only respond "I am Groot."\']\ntemperature: 0\ntop_p: 1\nmax_tokens: 512\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nlogit_bias: null \nmodel: gpt-3.5-turbo\n---',
 					)
-					.setValue(
-						this.#plugin.settings.LLMSpecificSettings.OpenAI.defaultChatFrontmatter,
-					)
+					.setValue(this.#plugin.settings.llmSettings.OpenAI.defaultChatFrontmatter)
 					.onChange(async (value) => {
-						this.#plugin.settings.LLMSpecificSettings.OpenAI.defaultChatFrontmatter =
-							value;
+						this.#plugin.settings.llmSettings.OpenAI.defaultChatFrontmatter = value;
 						await this.#plugin.saveSettings();
 					}),
 			);
@@ -184,9 +181,9 @@ export class SettingsTab extends PluginSettingTab {
 			.addText((text) =>
 				text
 					.setPlaceholder('some-api-key')
-					.setValue(this.#plugin.settings.LLMSpecificSettings.Anthropic.apiKey)
+					.setValue(this.#plugin.settings.llmSettings.Anthropic.apiKey)
 					.onChange(async (value) => {
-						this.#plugin.settings.LLMSpecificSettings.Anthropic.apiKey = value;
+						this.#plugin.settings.llmSettings.Anthropic.apiKey = value;
 						await this.#plugin.saveSettings();
 					}),
 			);
@@ -198,12 +195,9 @@ export class SettingsTab extends PluginSettingTab {
 			)
 			.addTextArea((text) =>
 				text
-					.setValue(
-						this.#plugin.settings.LLMSpecificSettings.Anthropic.defaultChatFrontmatter,
-					)
+					.setValue(this.#plugin.settings.llmSettings.Anthropic.defaultChatFrontmatter)
 					.onChange(async (value) => {
-						this.#plugin.settings.LLMSpecificSettings.Anthropic.defaultChatFrontmatter =
-							value;
+						this.#plugin.settings.llmSettings.Anthropic.defaultChatFrontmatter = value;
 						await this.#plugin.saveSettings();
 					}),
 			);
