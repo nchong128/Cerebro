@@ -3,7 +3,7 @@ import { Editor, MarkdownView, Notice, Platform, Plugin } from 'obsidian';
 import { createFolderModal, sanitizeTitle, writeInferredTitleToEditor } from 'lib/helpers';
 import { SettingsTab } from './views/settings';
 import { ChatTemplatesHandler } from './views/chatTemplates';
-import { YAML_FRONTMATTER_REGEX } from './constants';
+import { CerebroMessages, YAML_FRONTMATTER_REGEX } from './constants';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
 import { getFrontmatter as getFrontmatterFromSettings } from './settings';
 import pino from 'pino';
@@ -107,9 +107,8 @@ export default class Cerebro extends Plugin {
 			icon: 'message-circle',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
 				// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-				statusBarItemEl.setText('[Cerebro] Calling API...');
-
-				if (Platform.isMobile) new Notice('[Cerebro] Calling API');
+				statusBarItemEl.setText(CerebroMessages.CALLING_API);
+				if (Platform.isMobile) new Notice(CerebroMessages.CALLING_API);
 
 				// By creating a new ChatInterface in each invocation, we should be able to work with each view better
 				const chatInterface = new ChatInterface(this.settings, editor, view);
@@ -120,9 +119,10 @@ export default class Cerebro extends Plugin {
 				// and passes into the ChatInterface to handle.
 				const frontmatter = chatInterface.getFrontmatter(this.app);
 				const llmClient = this.llmClients[frontmatter.llm];
-				const messages = chatInterface.getMessages();
-				chatInterface.completeUserResponse(this.settings.llmSettings[frontmatter.llm].name);
+				const messages = await chatInterface.getMessages(this.app);
+				logger.info('messages', messages);
 
+				chatInterface.completeUserResponse();
 				const response = await llmClient.chat(messages, frontmatter, chatInterface);
 				chatInterface.completeAssistantResponse();
 				statusBarItemEl.setText('');
@@ -219,7 +219,7 @@ export default class Cerebro extends Plugin {
 				const chatInterface = new ChatInterface(this.settings, editor, view);
 				const frontmatter = chatInterface.getFrontmatter(this.app);
 				const client = this.llmClients[frontmatter.llm];
-				const messages = chatInterface.getMessages();
+				const messages = await chatInterface.getMessages(this.app);
 				const title = await this.inferTitleFromMessages(messages, client);
 
 				if (title) {
