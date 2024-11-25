@@ -1,5 +1,5 @@
-import { ChatFrontmatter, Message } from 'lib/types';
-import { Editor, EditorPosition, MarkdownView } from 'obsidian';
+import { ChatFrontmatter, ImageSource, Message, MessageImage, MessageText } from 'lib/types';
+import { Editor, EditorPosition, MarkdownView, TFile } from 'obsidian';
 import pino from 'pino';
 import { App } from 'obsidian';
 import { assistantHeader, CSSAssets, userHeader, YAML_FRONTMATTER_REGEX } from './constants';
@@ -26,8 +26,7 @@ const splitMessages = (text: string): string[] => {
 	 * Splits a string based on the separator
 	 */
 	try {
-		// <hr class="${CSSAssets.HR}">
-		return text.split('<hr class="${CSSAssets.HR}">');
+		return text.split(`<hr class="${CSSAssets.HR}">`);
 	} catch (err) {
 		throw new Error('Error splitting messages' + err);
 	}
@@ -48,13 +47,28 @@ const removeCommentsFromMessages = (message: string): string => {
 	}
 };
 
-const extractRoleAndMessage = (message: string): Message => {
+function escapeRegExp(text: string) {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const extractRoleAndMessage = (
+	message: string,
+	assistantHeader: string,
+	userHeader: string,
+): Message => {
 	try {
-		if (!message.includes('role::')) return { role: 'user', content: message };
+		if (!message.includes(CSSAssets.HEADER)) return { role: 'user', content: message };
+		console.log('message', message);
+		const userAssistantRegex = new RegExp(
+			`(?:${escapeRegExp(assistantHeader)}|${escapeRegExp(userHeader)})\\s*([\\s\\S]*)`,
+		);
+		const match = message.match(userAssistantRegex);
+		console.log('match', match);
 
-		const role = message.split('role::')[1].split('\n')[0].trim();
-		const content = message.split('role::')[1].split('\n').slice(1).join('\n').trim();
+		if (!match) throw new Error('No matching header found');
 
+		const role = message.includes(assistantHeader) ? 'assistant' : 'user';
+		const content = match[1].trim();
 		if (role === 'assistant' || role === 'user') {
 			return { role, content };
 		}
@@ -79,16 +93,24 @@ export default class ChatInterface {
 		this.headingPrefix = this.getHeadingPrefix(this.settings.headingLevel);
 	}
 
-	public getMessages(): Message[] {
+	public async getMessages(app: App): Promise<Message[]> {
 		// Retrieve and process messages
-		const bodyWithoutYML = removeYMLFromMessage(this.editor.getValue());
-		return splitMessages(bodyWithoutYML)
+		const rawEditorVal = this.editor.getValue();
+		const bodyWithoutYML = removeYMLFromMessage(rawEditorVal);
+		const messages = splitMessages(bodyWithoutYML)
 			.map((message) => removeCommentsFromMessages(message))
-			.map((message) => extractRoleAndMessage(message));
+			.map((message) =>
+				extractRoleAndMessage(
+					message,
+					assistantHeader(this.settings.assistantName, this.settings.headingLevel),
+					userHeader(this.settings.username, this.settings.headingLevel),
+				),
+			);
+		return Promise.all(messages.map((message) => this.parseImagesFromMessage(app, message)));
 	}
 
 	public addHR(): void {
-		const newLine = `\n<hr class="${CSSAssets.HR}">\n${userHeader(this.settings.headingLevel)}\n`;
+		const newLine = `\n<hr class="${CSSAssets.HR}">\n${userHeader(this.settings.username, this.settings.headingLevel)}\n`;
 		this.editor.replaceRange(newLine, this.editor.getCursor());
 
 		// Move cursor to end of file
@@ -100,14 +122,14 @@ export default class ChatInterface {
 		this.editor.setCursor(newCursor);
 	}
 
-	public completeUserResponse(assistantName: string): void {
+	public completeUserResponse(): void {
 		/**
 		 * 1. Moves cursor to end of line
 		 * 2. Places divider
 		 * 3. Completes the user's response by placing the assistant's header
 		 */
 		this.moveCursorToEndOfFile(this.editor);
-		const newLine = `\n\n<hr class="${CSSAssets.HR}">\n${assistantHeader(this.settings.headingLevel, assistantName)}\n`;
+		const newLine = `\n\n<hr class="${CSSAssets.HR}">\n${assistantHeader(this.settings.assistantName, this.settings.headingLevel)}\n`;
 		this.editor.replaceRange(newLine, this.editor.getCursor());
 		this.editorPosition = this.moveCursorToEndOfLine(this.editor, newLine);
 	}
@@ -118,7 +140,7 @@ export default class ChatInterface {
 		 * 2. Completes the assistants response by placing the user's header
 		 * 3. Moves cursor to end of line
 		 */
-		const newLine = `\n\n<hr class="${CSSAssets.HR}">\n${userHeader(this.settings.headingLevel)}\n`;
+		const newLine = `\n\n<hr class="${CSSAssets.HR}">\n${userHeader(this.settings.username, this.settings.headingLevel)}\n`;
 		this.editor.replaceRange(newLine, this.editor.getCursor());
 		this.editorPosition = this.moveCursorToEndOfLine(this.editor, newLine);
 	}
@@ -277,5 +299,81 @@ export default class ChatInterface {
 		});
 
 		this.stopStreaming = false;
+	}
+
+	private async parseImagesFromMessage(app: App, message: Message): Promise<Message> {
+		// Regex to find [[image]] patterns
+		const imageRegex = /(?<!`[^`]*)\[\[(.*?)(?:\|.*?)?\]\](?![^`]*`)/g;
+		const imageSources: ImageSource[] = [];
+
+		// Find all matches
+		const matches = (message.content as string).match(imageRegex);
+		if (!matches) return message;
+
+		// Process each match
+		for (const match of matches) {
+			// Remove brackets to get the path
+			const imagePath = match.replace(/\[\[|\]\]/g, '');
+
+			try {
+				imageSources.push(await this.getImageSource(app, imagePath));
+			} catch (error) {
+				console.error(`Failed to process image ${imagePath}:`, error);
+			}
+		}
+
+		const messageImages: MessageImage[] = imageSources.map((imageSource) => {
+			return {
+				type: 'image',
+				source: imageSource,
+			};
+		});
+
+		return {
+			...message,
+			content: [
+				{
+					type: 'text',
+					text: message.content as string,
+				},
+				...messageImages,
+			],
+		};
+	}
+
+	private async getImageSource(app: App, imagePath: string): Promise<ImageSource> {
+		// Remove the brackets if they exist
+		imagePath = imagePath.replace(/[\[\]]/g, '');
+
+		// Get the file from the vault
+		const file = app.metadataCache.getFirstLinkpathDest(imagePath, '');
+
+		if (file instanceof TFile) {
+			// Read the file as an array buffer
+			const arrayBuffer = await app.vault.readBinary(file);
+
+			// Convert array buffer to base64
+			const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+			// Get the file extension
+			const fileExtension = file.extension.toLowerCase();
+
+			// Return with proper mime type prefix
+			const mimeType =
+				fileExtension === 'png'
+					? 'image/png'
+					: fileExtension === 'jpg' || fileExtension === 'jpeg'
+						? 'image/jpeg'
+						: fileExtension === 'gif'
+							? 'image/gif'
+							: 'image/png';
+
+			return {
+				type: 'base64',
+				media_type: mimeType,
+				data: base64,
+			};
+		}
+		throw new Error(`Image file not found ${file}`);
 	}
 }

@@ -4,12 +4,13 @@ export interface LLMSettings {
 	apiKey: string;
 	defaultChatFrontmatter: string;
 	model: string;
-	name: string;
 }
 
 export interface CerebroSettings {
 	defaultLLM: LLM;
 	llmSettings: Record<LLM, LLMSettings>;
+	username: string;
+	assistantName: string;
 	stream: boolean;
 	chatTemplateFolder: string;
 	chatFolder: string;
@@ -26,16 +27,16 @@ export const DEFAULT_SETTINGS: CerebroSettings = {
 			defaultChatFrontmatter:
 				"---\nsystem_commands: ['I am a helpful assistant.']\ntemperature: 0\ntop_p: 1\nmax_tokens: 1024\npresence_penalty: 1\nfrequency_penalty: 1\nstream: true\nstop: null\nn: 1\nmodel: gpt-3.5-turbo\nllm: OpenAI\n---",
 			model: 'gpt-3.5-turbo',
-			name: 'GPT',
 		},
 		Anthropic: {
 			apiKey: 'default',
 			defaultChatFrontmatter:
 				'---\nsystem: []\ntemperature: 1.0\nmax_tokens: 1024\nstream: true\nstop: null\nmodel: claude-3-5-haiku-latest\nllm: Anthropic\n---',
 			model: 'claude-3-5-haiku-latest',
-			name: 'Claude',
 		},
 	},
+	username: 'User',
+	assistantName: 'Cerebro',
 	defaultLLM: 'Anthropic',
 	stream: true,
 	chatTemplateFolder: 'Cerebro/Templates',

@@ -12,7 +12,7 @@ import {
 	TextDelta,
 } from '@anthropic-ai/sdk/resources';
 import { Stream } from '@anthropic-ai/sdk/streaming';
-import { CerebroMessages, INFER_TITLE_PROMPT } from 'lib/constants';
+import { CerebroMessages } from 'lib/constants';
 
 const logger = pino({
 	level: 'info',

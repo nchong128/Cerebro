@@ -14,4 +14,22 @@ export type ChatFrontmatter = Omit<
 	system_commands: string[] | null;
 };
 
-export type Message = { role: string; content: string };
+export type ImageSource = {
+	type: 'base64';
+	media_type: string;
+	data: string;
+};
+
+export type MessageImage = {
+	type: 'image';
+	source: ImageSource;
+};
+
+export type MessageText = {
+	type: 'text';
+	text: string;
+};
+
+export type MessageContent = string | Array<MessageText | MessageImage>;
+
+export type Message = { role: string; content: MessageContent };
