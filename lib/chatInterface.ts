@@ -4,6 +4,7 @@ import pino from 'pino';
 import { App } from 'obsidian';
 import { assistantHeader, CSSAssets, userHeader, YAML_FRONTMATTER_REGEX } from './constants';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
+import { isValidFileExtension } from './helpers';
 
 const logger = pino({
 	level: 'info',
@@ -315,10 +316,14 @@ export default class ChatInterface {
 			// Remove brackets to get the path
 			const imagePath = match.replace(/\[\[|\]\]/g, '');
 
-			try {
-				imageSources.push(await this.getImageSource(app, imagePath));
-			} catch (error) {
-				console.error(`Failed to process image ${imagePath}:`, error);
+			// Get the file from the vault
+			const file = app.metadataCache.getFirstLinkpathDest(imagePath, '');
+			if (file && isValidFileExtension(file?.extension) && file instanceof TFile) {
+				try {
+					imageSources.push(await this.getImageSource(app, file));
+				} catch (error) {
+					console.error(`Failed to process image ${imagePath}:`, error);
+				}
 			}
 		}
 
@@ -341,39 +346,30 @@ export default class ChatInterface {
 		};
 	}
 
-	private async getImageSource(app: App, imagePath: string): Promise<ImageSource> {
-		// Remove the brackets if they exist
-		imagePath = imagePath.replace(/[\[\]]/g, '');
+	private async getImageSource(app: App, file: TFile): Promise<ImageSource> {
+		// Read the file as an array buffer
+		const arrayBuffer = await app.vault.readBinary(file);
 
-		// Get the file from the vault
-		const file = app.metadataCache.getFirstLinkpathDest(imagePath, '');
+		// Convert array buffer to base64
+		const base64 = Buffer.from(arrayBuffer).toString('base64');
 
-		if (file instanceof TFile) {
-			// Read the file as an array buffer
-			const arrayBuffer = await app.vault.readBinary(file);
+		// Get the file extension
+		const fileExtension = file.extension.toLowerCase();
 
-			// Convert array buffer to base64
-			const base64 = Buffer.from(arrayBuffer).toString('base64');
+		// Return with proper mime type prefix
+		const mimeType =
+			fileExtension === 'png'
+				? 'image/png'
+				: fileExtension === 'jpg' || fileExtension === 'jpeg'
+					? 'image/jpeg'
+					: fileExtension === 'gif'
+						? 'image/gif'
+						: 'image/png';
 
-			// Get the file extension
-			const fileExtension = file.extension.toLowerCase();
-
-			// Return with proper mime type prefix
-			const mimeType =
-				fileExtension === 'png'
-					? 'image/png'
-					: fileExtension === 'jpg' || fileExtension === 'jpeg'
-						? 'image/jpeg'
-						: fileExtension === 'gif'
-							? 'image/gif'
-							: 'image/png';
-
-			return {
-				type: 'base64',
-				media_type: mimeType,
-				data: base64,
-			};
-		}
-		throw new Error(`Image file not found ${file}`);
+		return {
+			type: 'base64',
+			media_type: mimeType,
+			data: base64,
+		};
 	}
 }

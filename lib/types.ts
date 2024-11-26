@@ -33,3 +33,11 @@ export type MessageText = {
 export type MessageContent = string | Array<MessageText | MessageImage>;
 
 export type Message = { role: string; content: MessageContent };
+
+export enum FileExtensionMimeType {
+	PNG = 'image/png',
+	JPG = 'image/jpeg',
+	JPEG = 'image/jpeg',
+	GIF = 'image/gif',
+}
+export type FileExtension = keyof typeof FileExtensionMimeType;
