@@ -1,6 +1,7 @@
 import { FileManager, MarkdownView, Notice, Vault, App } from 'obsidian';
 import pino from 'pino';
 import { FolderCreationModal } from './views/folderCreation';
+import { FileExtension, FileExtensionMimeType } from './types';
 
 const logger = pino({
 	level: 'info',
@@ -76,3 +77,8 @@ export const createFolderModal = async (
 
 	return result;
 };
+
+// Helper function to check file extension
+export function isValidFileExtension(ext: string): ext is FileExtension {
+	return Object.keys(FileExtensionMimeType).includes(ext.toUpperCase());
+}
