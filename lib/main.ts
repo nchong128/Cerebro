@@ -1,6 +1,11 @@
-/* eslint-disable @typescript-eslint/no-var-requires */
 import { Editor, MarkdownView, Notice, Platform, Plugin } from 'obsidian';
-import { createFolderModal, sanitizeTitle, writeInferredTitleToEditor } from 'lib/helpers';
+import {
+	createFolderModal,
+	getDate,
+	isTitleTimestampFormat,
+	sanitizeTitle,
+	writeInferredTitleToEditor,
+} from 'lib/helpers';
 import { SettingsTab } from './views/settings';
 import { ChatTemplatesHandler } from './views/chatTemplates';
 import { CerebroMessages, YAML_FRONTMATTER_REGEX } from './constants';
@@ -70,7 +75,7 @@ export default class Cerebro extends Plugin {
 						}
 					}
 
-					const filePath = `${this.settings.chatFolder}/${this.getDate(
+					const filePath = `${this.settings.chatFolder}/${getDate(
 						new Date(),
 						this.settings.dateFormat,
 					)}.md`;
@@ -132,7 +137,7 @@ export default class Cerebro extends Plugin {
 
 					if (
 						title &&
-						this.isTitleTimestampFormat(title) &&
+						isTitleTimestampFormat(title, this.settings.dateFormat) &&
 						messagesWithResponse.length >= 4
 					) {
 						logger.info('[Cerebro] Auto inferring title from messages');
@@ -200,15 +205,6 @@ export default class Cerebro extends Plugin {
 				editor.setCursor(newCursor);
 			},
 		});
-
-		// this.addCommand({
-		// 	id: 'cerebro-stop-streaming',
-		// 	name: 'Stop streaming',
-		// 	icon: 'octagon',
-		// 	editorCallback: (editor: Editor, view: MarkdownView) => {
-		// 		streamManager.stopStreaming();
-		// 	},
-		// });
 
 		this.addCommand({
 			id: 'cerebro-infer-title',
@@ -286,7 +282,7 @@ export default class Cerebro extends Plugin {
 				new ChatTemplatesHandler(
 					this.app,
 					this.settings,
-					this.getDate(new Date(), this.settings.dateFormat),
+					getDate(new Date(), this.settings.dateFormat),
 				).open();
 			},
 		});
@@ -296,41 +292,15 @@ export default class Cerebro extends Plugin {
 			name: 'Clear chat (except frontmatter)',
 			icon: 'trash',
 			editorCallback: async (editor: Editor, view: MarkdownView) => {
-				this.clearConversationExceptFrontmatter(editor);
+				const chatInterface = new ChatInterface(this.settings, editor, view);
+				try {
+					chatInterface.clearConversationExceptFrontmatter(editor);
+				} catch (e) {
+					new Notice('[Cerebro] Error clearing chat');
+					throw new Error('[Cerebro] Error clearing chat:' + e);
+				}
 			},
 		});
-	}
-
-	clearConversationExceptFrontmatter(editor: Editor) {
-		try {
-			// Retrieve frontmatter
-			const frontmatter = editor.getValue().match(YAML_FRONTMATTER_REGEX);
-
-			if (!frontmatter) {
-				throw new Error('no frontmatter found');
-			}
-
-			// clear editor
-			editor.setValue('');
-
-			// add frontmatter
-			editor.replaceRange(frontmatter[0], editor.getCursor());
-
-			// get length of file
-			const length = editor.lastLine();
-
-			// move cursor to end of file https://davidwalsh.name/codemirror-set-focus-line
-			const newCursor = {
-				line: length + 1,
-				ch: 0,
-			};
-
-			editor.setCursor(newCursor);
-
-			return newCursor;
-		} catch (err) {
-			throw new Error('Error clearing conversation' + err);
-		}
 	}
 
 	private async inferTitleFromMessages(messages: Message[], client: LLMClient): Promise<string> {
@@ -344,55 +314,6 @@ export default class Cerebro extends Plugin {
 			new Notice('[Cerebro] Error inferring title from messages');
 			throw new Error('[Cerebro] Error inferring title from messages' + err);
 		}
-	}
-
-	// only proceed to infer title if the title is in timestamp format
-	isTitleTimestampFormat(title: string) {
-		try {
-			const format = this.settings.dateFormat;
-			const pattern = this.generateDatePattern(format);
-
-			return title.length == format.length && pattern.test(title);
-		} catch (err) {
-			throw new Error('Error checking if title is in timestamp format' + err);
-		}
-	}
-
-	generateDatePattern(format: string) {
-		const pattern = format
-			.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') // Escape any special characters
-			.replace('YYYY', '\\d{4}') // Match exactly four digits for the year
-			.replace('MM', '\\d{2}') // Match exactly two digits for the month
-			.replace('DD', '\\d{2}') // Match exactly two digits for the day
-			.replace('hh', '\\d{2}') // Match exactly two digits for the hour
-			.replace('mm', '\\d{2}') // Match exactly two digits for the minute
-			.replace('ss', '\\d{2}'); // Match exactly two digits for the second
-
-		return new RegExp(`^${pattern}$`);
-	}
-
-	// get date from format
-	getDate(date: Date, format = 'YYYYMMDDhhmmss') {
-		const year = date.getFullYear();
-		const month = date.getMonth() + 1;
-		const day = date.getDate();
-		const hour = date.getHours();
-		const minute = date.getMinutes();
-		const second = date.getSeconds();
-
-		const paddedMonth = month.toString().padStart(2, '0');
-		const paddedDay = day.toString().padStart(2, '0');
-		const paddedHour = hour.toString().padStart(2, '0');
-		const paddedMinute = minute.toString().padStart(2, '0');
-		const paddedSecond = second.toString().padStart(2, '0');
-
-		return format
-			.replace('YYYY', year.toString())
-			.replace('MM', paddedMonth)
-			.replace('DD', paddedDay)
-			.replace('hh', paddedHour)
-			.replace('mm', paddedMinute)
-			.replace('ss', paddedSecond);
 	}
 
 	private async loadSettings(): Promise<void> {

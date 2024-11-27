@@ -346,6 +346,36 @@ export default class ChatInterface {
 		};
 	}
 
+	public clearConversationExceptFrontmatter(editor: Editor) {
+		try {
+			// Retrieve frontmatter text (not the object)
+			const frontmatter = editor.getValue().match(YAML_FRONTMATTER_REGEX);
+
+			if (!frontmatter) throw new Error('no frontmatter found');
+
+			// clear editor
+			editor.setValue('');
+
+			// add frontmatter back
+			editor.replaceRange(frontmatter[0], editor.getCursor());
+
+			// get length of file
+			const length = editor.lastLine();
+
+			// move cursor to end of file https://davidwalsh.name/codemirror-set-focus-line
+			const newCursor = {
+				line: length + 1,
+				ch: 0,
+			};
+
+			editor.setCursor(newCursor);
+
+			return newCursor;
+		} catch (err) {
+			throw new Error('Error clearing conversation' + err);
+		}
+	}
+
 	private async getImageSource(app: App, file: TFile): Promise<ImageSource> {
 		// Read the file as an array buffer
 		const arrayBuffer = await app.vault.readBinary(file);

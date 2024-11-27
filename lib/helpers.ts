@@ -82,3 +82,51 @@ export const createFolderModal = async (
 export function isValidFileExtension(ext: string): ext is FileExtension {
 	return Object.keys(FileExtensionMimeType).includes(ext.toUpperCase());
 }
+
+// only proceed to infer title if the title is in timestamp format
+export const isTitleTimestampFormat = (title: string, dateFormat: string): boolean => {
+	try {
+		const pattern = generateDatePattern(dateFormat);
+
+		return title.length == dateFormat.length && pattern.test(title);
+	} catch (err) {
+		throw new Error('Error checking if title is in timestamp format' + err);
+	}
+};
+
+const generateDatePattern = (format: string): RegExp => {
+	const pattern = format
+		.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') // Escape any special characters
+		.replace('YYYY', '\\d{4}') // Match exactly four digits for the year
+		.replace('MM', '\\d{2}') // Match exactly two digits for the month
+		.replace('DD', '\\d{2}') // Match exactly two digits for the day
+		.replace('hh', '\\d{2}') // Match exactly two digits for the hour
+		.replace('mm', '\\d{2}') // Match exactly two digits for the minute
+		.replace('ss', '\\d{2}'); // Match exactly two digits for the second
+
+	return new RegExp(`^${pattern}$`);
+};
+
+// get date from format
+export const getDate = (date: Date, format = 'YYYYMMDDhhmmss'): string => {
+	const year = date.getFullYear();
+	const month = date.getMonth() + 1;
+	const day = date.getDate();
+	const hour = date.getHours();
+	const minute = date.getMinutes();
+	const second = date.getSeconds();
+
+	const paddedMonth = month.toString().padStart(2, '0');
+	const paddedDay = day.toString().padStart(2, '0');
+	const paddedHour = hour.toString().padStart(2, '0');
+	const paddedMinute = minute.toString().padStart(2, '0');
+	const paddedSecond = second.toString().padStart(2, '0');
+
+	return format
+		.replace('YYYY', year.toString())
+		.replace('MM', paddedMonth)
+		.replace('DD', paddedDay)
+		.replace('hh', paddedHour)
+		.replace('mm', paddedMinute)
+		.replace('ss', paddedSecond);
+};
