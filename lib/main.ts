@@ -8,7 +8,7 @@ import {
 } from 'lib/helpers';
 import { SettingsTab } from './views/settings';
 import { ChatTemplatesHandler } from './views/chatTemplates';
-import { CerebroMessages, YAML_FRONTMATTER_REGEX } from './constants';
+import { CerebroMessages, ERROR_NOTICE_TIMEOUT_MILLISECONDS } from './constants';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
 import { getFrontmatter as getFrontmatterFromSettings } from './settings';
 import pino from 'pino';
@@ -96,10 +96,12 @@ export default class Cerebro extends Plugin {
 
 					activeView.editor.focus();
 					chatInterface.moveCursorToEndOfFile(activeView.editor);
-				} catch (err) {
-					logger.error(`[Cerebro] Error in Create new chat with highlighted text`, err);
+				} catch (e) {
+					logger.error(`[Cerebro] Error in Create new chat with highlighted text`, e);
 					new Notice(
-						`[Cerebro] Error in Create new chat with highlighted text, check console`,
+						`[Cerebro] Error while creating new chat with highlighted text. See console for more details. ` +
+							e.message,
+						ERROR_NOTICE_TIMEOUT_MILLISECONDS,
 					);
 				}
 			},
@@ -127,7 +129,16 @@ export default class Cerebro extends Plugin {
 				const messages = await chatInterface.getMessages(this.app);
 
 				chatInterface.completeUserResponse();
-				const response = await llmClient.chat(messages, frontmatter, chatInterface);
+				let response: Message;
+				try {
+					response = await llmClient.chat(messages, frontmatter, chatInterface);
+				} catch (e) {
+					new Notice(
+						'[Cerebro] Chat failed: ' + e.message,
+						ERROR_NOTICE_TIMEOUT_MILLISECONDS,
+					);
+					throw new Error(e);
+				}
 				chatInterface.completeAssistantResponse();
 				statusBarItemEl.setText('');
 
@@ -167,7 +178,10 @@ export default class Cerebro extends Plugin {
 							logger.info(e);
 							statusBarItemEl.setText('');
 							if (Platform.isMobile) {
-								new Notice(`[Cerebro] Error inferring title. ${e}`, 5000);
+								new Notice(
+									`[Cerebro] Error inferring title: ${e.message}`,
+									ERROR_NOTICE_TIMEOUT_MILLISECONDS,
+								);
 							}
 						}
 					}
@@ -230,7 +244,7 @@ export default class Cerebro extends Plugin {
 		});
 
 		this.addCommand({
-			id: 'choose-chat-template',
+			id: 'cerebro-choose-chat-template',
 			name: 'Create new chat from template',
 			icon: 'layout-template',
 			editorCallback: async (editor: Editor, view: MarkdownView): Promise<void> => {
@@ -297,7 +311,7 @@ export default class Cerebro extends Plugin {
 					chatInterface.clearConversationExceptFrontmatter(editor);
 				} catch (e) {
 					new Notice('[Cerebro] Error clearing chat');
-					throw new Error('[Cerebro] Error clearing chat:' + e);
+					throw new Error('[Cerebro] Error clearing chat:' + e.message);
 				}
 			},
 		});
@@ -310,9 +324,12 @@ export default class Cerebro extends Plugin {
 		try {
 			const title = await client.inferTitle(messages, this.settings.inferTitleLanguage);
 			return sanitizeTitle(title);
-		} catch (err) {
-			new Notice('[Cerebro] Error inferring title from messages');
-			throw new Error('[Cerebro] Error inferring title from messages' + err);
+		} catch (e) {
+			new Notice(
+				'[Cerebro] Error inferring title from messages',
+				ERROR_NOTICE_TIMEOUT_MILLISECONDS,
+			);
+			throw new Error('[Cerebro] Error inferring title from messages' + e);
 		}
 	}
 
