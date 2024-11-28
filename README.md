@@ -1,22 +1,12 @@
-# ChatGPT-MD
+# Cerebro - AI-powered second brain for your Obsidian vault.
 
-A (nearly) seamless integration of ChatGPT into Obsidian.
-
-## Demo
-
-https://user-images.githubusercontent.com/3282661/223005882-6632c997-b9a6-445b-800c-77a4b76a6325.mov
-
-### (youtube mirror - for mobile users ⬇️)
-
-[![video thumbnail](video-thumbnail.png)](https://youtu.be/CxDlol_DDI8)
-
-## Features
+## Key Features
 
 -   Chat from _any_ MD note
--   Create Chat _Templates_ for sharing and running similar scenarios. Check out the companion repo [chatgpt-md-templates](https://github.com/bramses/chatgpt-md-templates) for some templates!
--   As _minimal boilerplate as possible_, only two required in fact! `<hr class="${CSSAssets.HR}">` and `role::system|assistant|user`
--   Use _frontmatter_ to change variables for the ChatGPT API
--   _Stream_ characters to Obsidian, creating a realtime feel
+-   Create Chat _Templates_ for sharing and running similar scenarios.
+-   As _minimal boilerplate as possible_, only two required in fact!
+-   Use _frontmatter_ to change variables for the LLM.
+-   _Stream_ characters to Obsidian, creating a realtime feel.
 -   Uses _regular Markdown_. Meaning everything from _lists_ to _code blocks_ from ChatGPT _will render_!
 -   Create chats from _highlighted text_.
 -   [_Infer title_ from messages](https://github.com/bramses/chatgpt-md/discussions/11). Can be set to run automatically after >4 messages.
@@ -27,21 +17,40 @@ https://user-images.githubusercontent.com/3282661/223005882-6632c997-b9a6-445b-8
 -   (NEW!) Choose between nine languages for "Infer Title". Can be set in settings.
 -   (NEW!) ChatGPT comment blocks. Allows you to leave scratchpad notes, backlinks...or anything else really!! See command below for details.
 
-### Commands
+## Installation
+
+### Community Plugins
+
+[COMING SOON] Go to Community Plugins and search `Cerebro`
+
+### Local
+
+1. Clone this repo into your `plugins` directory in your vault
+2. Run `npm i` and `npm run build`
+
+### Both
+
+1. Insert your API keys from OpenAI or Anthropic into the settings
+2. Set `Chat Folder` and `Chat Template Folder`
+3. Add a hotkey for `Chat`
+
+
+
+## Commands
 
 #### Chat
 
-The main command! Parses the file and calls ChatGPT. Recommended to add to a hotkey for easy usage.
+The main command! Parses the file and calls an LLM provider of your choice. Recommended to add to a hotkey for easy usage.
 
-#### Create New Chat with Highlighted Text
+#### Create new chat
 
-Take currently highlighted text and default frontmatter and create a new chat file in `Chat Folder`
+Takes the currently highlighted text and default frontmatter and creates a new chat file in your `Chat` folder. 
 
 #### Create New Chat From Template
 
-Create a new chat file from a template specified in `Chat Template Folder`. Remember to check out [chatgpt-md-templates](https://github.com/bramses/chatgpt-md-templates) for some templates!
+Create a new chat file from a template specified in your `Chat Template Folder`.
 
-#### Infer Title
+#### Infer title
 
 [Infer the title of the chat from the messages](https://github.com/bramses/chatgpt-md/discussions/11). Requires at least 2 messages. Can be set in settings to run automatically after >4 messages.
 
@@ -54,36 +63,19 @@ Comments begin with `=begin-chatgpt-md-comment` and end with `=end-chatgpt-md-co
 ![Screenshot 2023-04-03 16-47-05](https://user-images.githubusercontent.com/3282661/229628591-eda70076-9e03-44e3-98b5-16be73f39957.png)
 ![Screenshot 2023-04-03 16-59-26](https://user-images.githubusercontent.com/3282661/229628629-2fc9ec19-7cce-4754-9c09-11f2364395e5.png)
 
-#### Clear Chat
+#### Clear chat
 
 Removes all messages but leaves frontmatter
 
-#### Stop Streaming (Does not work on mobile)
+#### Stop streaming (Does not work on mobile)
 
 Stops the stream. Useful if you want to stop the stream if you don't like where ChatGPT is heading/going too long.
 
-#### Add Divider
+#### Add divider
 
 Add a ChatGPT MD Horizontal Rule and `role::user`.
 
-**!! Note: both `role::system|assistant|user` AND `<hr class="${CSSAssets.HR}">` are REQUIRED for the plugin to work!!**
 
-## Installation
-
-### Community Plugins
-
-Go to Community Plugins and search `ChatGPT MD`
-
-### Local
-
-1. Clone this repo into your `plugins` directory in your vault
-2. Run `npm i` and `npm run build`
-
-### Both
-
-1. Insert your OpenAI API Key into the settings
-2. Set `Chat Folder` and `Chat Template Folder`
-3. Add a hotkey for `Chat` (Im using `alt-[`)
 
 ## FAQ
 
@@ -106,32 +98,3 @@ See pics below:
 ![Screenshot 2023-03-15 18-47-40](https://user-images.githubusercontent.com/3282661/225460844-54101bf2-d5ac-4725-95b5-c79bf6b6ed6a.png)
 ![Screenshot 2023-03-15 18-48-30](https://user-images.githubusercontent.com/3282661/225460845-6ff12c98-ea74-4ae8-bc2d-4161e89acdda.png)
 
-### Q: How do I use GPT-4?
-
-If you are off the [waitlist](https://openai.com/waitlist/gpt-4-api), simply replace `model: gpt-3.5-turbo` with `model: gpt-4` in the frontmatter. (_note: gpt-4 is slower than turbo!_)
-
-### Q: How do I use a custom endpoint?
-
-```md
----
-system_commands: ['I create small self contained app ideas that could fit in a CodePen or a Replit']
-url: https://localhost
----
-```
-
-The custom API must conform to the OpenAI API spec. eg you could use Azure's OpenAI hosted endpoints here. Refer to your provider for API key handling.
-
----
-
-### Development
-
-#### Project Structure
-
-```
-main.ts: Plugin management, initializes settings and objects such as LLM clients, registers commands
-models/openAIClient.ts: OpenAI client inheriting the Client interface
-models/anthropicClient.ts: Anthropic client inheriting the Client interface
-views/settings.ts: Settings tab
-constants.ts: Constants for package-wide use
-types.ts: Types for package-wide use
-```
