@@ -1,4 +1,4 @@
-import { LLM } from './types';
+import { ChatFrontmatter, LLM } from './types';
 
 export interface LLMSettings {
 	apiKey: string;

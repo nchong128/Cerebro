@@ -125,22 +125,21 @@ export default class Cerebro extends Plugin {
 				// Plugin passes ChatInterface for it to work with the LLM client. LLM retrieves the chunks
 				// and passes into the ChatInterface to handle.
 				const frontmatter = chatInterface.getFrontmatter(this.app);
-				const llmClient = this.llmClients[frontmatter.llm];
+				const llm = this.llmClients[frontmatter.llm];
 				const messages = await chatInterface.getMessages(this.app);
-
 				chatInterface.completeUserResponse();
+
 				let response: Message;
 				try {
-					response = await llmClient.chat(messages, frontmatter, chatInterface);
+					response = await llm.chat(messages, frontmatter, chatInterface);
+					chatInterface.completeAssistantResponse();
 				} catch (e) {
 					new Notice(
 						'[Cerebro] Chat failed: ' + e.message,
 						ERROR_NOTICE_TIMEOUT_MILLISECONDS,
 					);
-					throw new Error(e);
 				}
-				chatInterface.completeAssistantResponse();
-				statusBarItemEl.setText('');
+				statusBarItemEl.setText(CerebroMessages.EMPTY);
 
 				if (this.settings.autoInferTitle) {
 					const messagesWithResponse = messages.concat(response);
@@ -157,13 +156,13 @@ export default class Cerebro extends Plugin {
 						try {
 							const title = await this.inferTitleFromMessages(
 								messagesWithResponse,
-								llmClient,
+								llm,
 							);
 							if (title) {
 								logger.info(
 									`[Cerebro] Automatically inferred title: ${title}. Changing file name...`,
 								);
-								statusBarItemEl.setText('');
+								statusBarItemEl.setText(CerebroMessages.EMPTY);
 								await writeInferredTitleToEditor(
 									this.app.vault,
 									view,
@@ -176,7 +175,7 @@ export default class Cerebro extends Plugin {
 							}
 						} catch (e) {
 							logger.info(e);
-							statusBarItemEl.setText('');
+							statusBarItemEl.setText(CerebroMessages.EMPTY);
 							if (Platform.isMobile) {
 								new Notice(
 									`[Cerebro] Error inferring title: ${e.message}`,
@@ -311,7 +310,6 @@ export default class Cerebro extends Plugin {
 					chatInterface.clearConversationExceptFrontmatter(editor);
 				} catch (e) {
 					new Notice('[Cerebro] Error clearing chat');
-					throw new Error('[Cerebro] Error clearing chat:' + e.message);
 				}
 			},
 		});
