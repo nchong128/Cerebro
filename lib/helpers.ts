@@ -1,7 +1,8 @@
 import { FileManager, MarkdownView, Notice, Vault, App } from 'obsidian';
 import pino from 'pino';
 import { FolderCreationModal } from './views/folderCreation';
-import { FileExtension, FileExtensionMimeType } from './types';
+import { ImageExtension, ImageExtensionToMimeType, TextFileExtension } from './types';
+import { CerebroSettings } from './settings';
 
 const logger = pino({
 	level: 'info',
@@ -78,9 +79,14 @@ export const createFolderModal = async (
 	return result;
 };
 
-// Helper function to check file extension
-export function isValidFileExtension(ext: string): ext is FileExtension {
-	return Object.keys(FileExtensionMimeType).includes(ext.toUpperCase());
+// Helper function to check if a filepath is an image
+export function isValidImageExtension(ext: string): ext is ImageExtension {
+	return Object.keys(ImageExtensionToMimeType).includes(ext.toUpperCase());
+}
+
+// Helper function to check if a filepath is a text file
+export function isValidFileExtension(ext: string): ext is TextFileExtension {
+	return Object.keys(TextFileExtension).includes(ext.toUpperCase());
 }
 
 // only proceed to infer title if the title is in timestamp format
@@ -129,4 +135,17 @@ export const getDate = (date: Date, format = 'YYYYMMDDhhmmss'): string => {
 		.replace('hh', paddedHour)
 		.replace('mm', paddedMinute)
 		.replace('ss', paddedSecond);
+};
+
+export const getCerebroBaseSystemPrompts = (settings: CerebroSettings): string[] => {
+	return [
+		// Formalities
+		`Your name is ${settings.assistantName}. You are speaking to ${settings.username}.`,
+
+		// Obsidian Context
+		'You are speaking through an Obsidian markdown document. You understand markdown syntax and can interpret double-bracketed links to files and images. When referenced, focus on content rather than the file nature.',
+
+		// Knowledge Context
+		'You are part of a knowledge management system. Your responses should be clear and conducive to note-taking.',
+	];
 };
