@@ -7,24 +7,24 @@ interface ChatTemplates {
 }
 
 export class ChatTemplatesHandler extends SuggestModal<ChatTemplates> {
-	readonly #settings: CerebroSettings;
-	readonly #titleDate: string;
+	readonly settings: CerebroSettings;
+	readonly titleDate: string;
 
 	constructor(app: App, settings: CerebroSettings, titleDate: string) {
 		super(app);
-		this.#settings = settings;
-		this.#titleDate = titleDate;
+		this.settings = settings;
+		this.titleDate = titleDate;
 	}
 
 	public getFilesInChatFolder(): TFile[] {
 		const folder = this.app.vault.getAbstractFileByPath(
-			this.#settings.chatTemplateFolder,
+			this.settings.chatTemplateFolder,
 		) as TFolder;
 		if (folder != null) {
 			return folder.children as TFile[];
 		} else {
-			new Notice(`Error getting folder: ${this.#settings.chatTemplateFolder}`);
-			throw new Error(`Error getting folder: ${this.#settings.chatTemplateFolder}`);
+			new Notice(`Error getting folder: ${this.settings.chatTemplateFolder}`);
+			throw new Error(`Error getting folder: ${this.settings.chatTemplateFolder}`);
 		}
 	}
 
@@ -64,7 +64,7 @@ export class ChatTemplatesHandler extends SuggestModal<ChatTemplates> {
 		const templateText = await this.app.vault.read(template.file);
 		// use template text to create new file in chat folder
 		const file = await this.app.vault.create(
-			`${this.#settings.chatFolder}/${this.#titleDate}.md`,
+			`${this.settings.chatFolder}/${this.titleDate}.md`,
 			templateText,
 		);
 

@@ -23,7 +23,7 @@ const logger = pino({
 });
 
 export default class Cerebro extends Plugin {
-	private settings: CerebroSettings;
+	public settings: CerebroSettings;
 	private llmClients: Record<LLM, LLMClient>;
 
 	async onload(): Promise<void> {
