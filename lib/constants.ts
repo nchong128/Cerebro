@@ -11,6 +11,7 @@ export enum CerebroMessages {
 	CALLING_API = '[Cerebro] Calling API',
 	INFER_TITLE_MESSAGE_TOO_SHORT_FAILURE = 'Not enough messages to infer title. Minimum 2 messages.',
 	INFER_TITLE_UNKNOWN_FAILURE = 'Title unable to be inferred',
+	EMPTY = '',
 }
 
 export const userHeader = (username: string, headingLevel: number): string => {
