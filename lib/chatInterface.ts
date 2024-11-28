@@ -1,16 +1,19 @@
-import { ChatFrontmatter, ImageSource, Message, MessageImage, MessageText } from 'lib/types';
+import {
+	ChatFrontmatter,
+	ImageSource,
+	ImageExtension,
+	ImageExtensionToMimeType,
+	Message,
+	MessageImage,
+	MessageText,
+} from 'lib/types';
 import { Editor, EditorPosition, MarkdownView, TFile } from 'obsidian';
 import pino from 'pino';
 import { App } from 'obsidian';
-import {
-	assistantHeader,
-	CSSAssets,
-	getCerebroBaseSystemPrompts,
-	userHeader,
-	YAML_FRONTMATTER_REGEX,
-} from './constants';
+import { assistantHeader, CSSAssets, userHeader, YAML_FRONTMATTER_REGEX } from './constants';
+import { getCerebroBaseSystemPrompts } from './helpers';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
-import { isValidFileExtension } from './helpers';
+import { isValidFileExtension, isValidImageExtension } from './helpers';
 
 const logger = pino({
 	level: 'info',
@@ -54,9 +57,9 @@ const removeCommentsFromMessages = (message: string): string => {
 	}
 };
 
-function escapeRegExp(text: string) {
+const escapeRegExp = (text: string): string => {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+};
 
 const extractRoleAndMessage = (
 	message: string,
@@ -85,7 +88,6 @@ const extractRoleAndMessage = (
 
 export default class ChatInterface {
 	public settings: CerebroSettings;
-	private headingPrefix: string;
 	private editor: Editor;
 	public editorPosition: EditorPosition;
 	private view: MarkdownView;
@@ -95,7 +97,6 @@ export default class ChatInterface {
 		this.settings = settings;
 		this.editor = editor;
 		this.view = view;
-		this.headingPrefix = this.getHeadingPrefix(this.settings.headingLevel);
 	}
 
 	public async getMessages(app: App): Promise<Message[]> {
@@ -111,7 +112,7 @@ export default class ChatInterface {
 					userHeader(this.settings.username, this.settings.headingLevel),
 				),
 			);
-		return Promise.all(messages.map((message) => this.parseImagesFromMessage(app, message)));
+		return Promise.all(messages.map((message) => this.parseFilesFromMessage(app, message)));
 	}
 
 	public addHR(): void {
@@ -150,14 +151,14 @@ export default class ChatInterface {
 		this.editorPosition = this.moveCursorToEndOfLine(this.editor, newLine);
 	}
 
-	public appendNonStreamingMessage = (message: string) => {
+	public appendNonStreamingMessage(message: string): void {
 		/**
 		 * 1. Places assistant's response
 		 * 2. Moves cursor to end of line
 		 */
 		this.editor.replaceRange(message, this.editor.getCursor());
 		this.editorPosition = this.moveCursorToEndOfLine(this.editor, message);
-	};
+	}
 
 	public moveCursorToEndOfFile(editor: Editor) {
 		try {
@@ -200,7 +201,6 @@ export default class ChatInterface {
 	public updateSettings(settings: CerebroSettings) {
 		logger.info('Saving settings in ChatController');
 		this.settings = settings;
-		this.headingPrefix = this.getHeadingPrefix(this.settings.headingLevel);
 	}
 
 	public getFrontmatter(app: App): ChatFrontmatter {
@@ -311,27 +311,45 @@ export default class ChatInterface {
 		this.stopStreaming = false;
 	}
 
-	private async parseImagesFromMessage(app: App, message: Message): Promise<Message> {
-		// Regex to find [[image]] patterns
-		const imageRegex = /(?<!`[^`]*)\[\[(.*?)(?:\|.*?)?\]\](?![^`]*`)/g;
+	private async parseFilesFromMessage(app: App, message: Message): Promise<Message> {
+		/**
+		 * Regex to match wiki-style links [[like this]] or [[like this|with description]]
+		 * Excludes matches within backtick-delimited code blocks
+		 *
+		 * @example
+		 * "Some [[wiki link]] and `[[not a link]]`"
+		 * // Matches: ["[[wiki link]]"]
+		 *
+		 */
+		const fileRegex = /(?<!`[^`]*)\[\[(.*?)(?:\|.*?)?\]\](?![^`]*`)/g;
 		const imageSources: ImageSource[] = [];
+		const messageText: MessageText[] = [];
 
 		// Find all matches
-		const matches = (message.content as string).match(imageRegex);
+		const matches = (message.content as string).match(fileRegex);
 		if (!matches) return message;
 
 		// Process each match
 		for (const match of matches) {
 			// Remove brackets to get the path
-			const imagePath = match.replace(/\[\[|\]\]/g, '');
+			const filePath = match.replace(/\[\[|\]\]/g, '').split('|')[0];
 
 			// Get the file from the vault
-			const file = app.metadataCache.getFirstLinkpathDest(imagePath, '');
-			if (file && isValidFileExtension(file?.extension) && file instanceof TFile) {
-				try {
-					imageSources.push(await this.getImageSource(app, file));
-				} catch (error) {
-					console.error(`Failed to process image ${imagePath}:`, error);
+			const file = app.metadataCache.getFirstLinkpathDest(filePath, '');
+
+			if (file && file instanceof TFile) {
+				if (isValidImageExtension(file?.extension)) {
+					try {
+						imageSources.push(await this.getImageSourceFromFile(app, file));
+					} catch (error) {
+						console.error(`Failed to process image ${filePath}:`, error);
+					}
+				} else if (isValidFileExtension(file?.extension)) {
+					try {
+						messageText.push(await this.getMessageTextFromFile(app, file));
+					} catch (error) {
+						console.error(`Failed to process file ${filePath}:`, error);
+					}
 				}
 			}
 		}
@@ -351,6 +369,7 @@ export default class ChatInterface {
 					text: message.content as string,
 				},
 				...messageImages,
+				...messageText,
 			],
 		};
 	}
@@ -385,30 +404,32 @@ export default class ChatInterface {
 		}
 	}
 
-	private async getImageSource(app: App, file: TFile): Promise<ImageSource> {
+	private async getImageSourceFromFile(app: App, image: TFile): Promise<ImageSource> {
 		// Read the file as an array buffer
-		const arrayBuffer = await app.vault.readBinary(file);
+		const arrayBuffer = await app.vault.readBinary(image);
 
 		// Convert array buffer to base64
 		const base64 = Buffer.from(arrayBuffer).toString('base64');
 
 		// Get the file extension
-		const fileExtension = file.extension.toLowerCase();
+		const fileExtension = image.extension.toLowerCase();
 
 		// Return with proper mime type prefix
-		const mimeType =
-			fileExtension === 'png'
-				? 'image/png'
-				: fileExtension === 'jpg' || fileExtension === 'jpeg'
-					? 'image/jpeg'
-					: fileExtension === 'gif'
-						? 'image/gif'
-						: 'image/png';
+		const mimeType = ImageExtensionToMimeType[image.extension.toUpperCase() as ImageExtension];
 
 		return {
 			type: 'base64',
 			media_type: mimeType,
 			data: base64,
+		};
+	}
+
+	private async getMessageTextFromFile(app: App, textFile: TFile): Promise<MessageText> {
+		const text = await app.vault.cachedRead(textFile);
+
+		return {
+			type: 'text',
+			text,
 		};
 	}
 }

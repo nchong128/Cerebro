@@ -128,6 +128,7 @@ export default class Cerebro extends Plugin {
 				logger.info('[Cerebro] frontmatter', frontmatter);
 				const llm = this.llmClients[frontmatter.llm];
 				const messages = await chatInterface.getMessages(this.app);
+				logger.info('[Cerebro] messages', messages);
 				chatInterface.completeUserResponse();
 
 				let response: Message;
