@@ -34,8 +34,6 @@
 2. Set `Chat Folder` and `Chat Template Folder`
 3. Add a hotkey for `Chat`
 
-
-
 ## Commands
 
 #### Chat
@@ -44,7 +42,7 @@ The main command! Parses the file and calls an LLM provider of your choice. Reco
 
 #### Create new chat
 
-Takes the currently highlighted text and default frontmatter and creates a new chat file in your `Chat` folder. 
+Takes the currently highlighted text and default frontmatter and creates a new chat file in your `Chat` folder.
 
 #### Create New Chat From Template
 
@@ -75,8 +73,6 @@ Stops the stream. Useful if you want to stop the stream if you don't like where 
 
 Add a ChatGPT MD Horizontal Rule and `role::user`.
 
-
-
 ## FAQ
 
 ### Q: The chat seems to be getting cut off halfway through
@@ -97,4 +93,3 @@ See pics below:
 
 ![Screenshot 2023-03-15 18-47-40](https://user-images.githubusercontent.com/3282661/225460844-54101bf2-d5ac-4725-95b5-c79bf6b6ed6a.png)
 ![Screenshot 2023-03-15 18-48-30](https://user-images.githubusercontent.com/3282661/225460845-6ff12c98-ea74-4ae8-bc2d-4161e89acdda.png)
-
