@@ -30,23 +30,10 @@ export class AnthropicClient implements LLMClient {
 
 	public async sendCreateMessageRequest(
 		messages: Anthropic.Messages.MessageParam[],
-		{ max_tokens, model, stream, system, temperature }: ChatFrontmatter,
+		{ max_tokens, model, stream, system_commands, temperature }: ChatFrontmatter,
 	) {
+		const system = system_commands.join('\n');
 		return this.client.messages.create({
-			messages,
-			model,
-			max_tokens,
-			stream,
-			system,
-			temperature,
-		});
-	}
-
-	public async sendStreamMessageRequest(
-		messages: Anthropic.Messages.MessageParam[],
-		{ max_tokens, model, stream, system, temperature }: ChatFrontmatter,
-	) {
-		return this.client.messages.stream({
 			messages,
 			model,
 			max_tokens,

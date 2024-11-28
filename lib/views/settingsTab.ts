@@ -20,6 +20,30 @@ export class SettingsTab extends PluginSettingTab {
 			text: 'Cerebro',
 		});
 
+		new Setting(containerEl)
+			.setName("User's name")
+			.setDesc(
+				'Your name in the conversation. Note: existing chats will still maintain the initial name that you started with!',
+			)
+			.addText((text) =>
+				text.setValue(this.#plugin.settings.username).onChange(async (value) => {
+					this.#plugin.settings.username = value;
+					await this.#plugin.saveSettings();
+				}),
+			);
+
+		new Setting(containerEl)
+			.setName("Assistant's name")
+			.setDesc(
+				"The assistant's name in the conversation. Note: existing chats will still maintain the initial name that you started with!",
+			)
+			.addText((text) =>
+				text.setValue(this.#plugin.settings.assistantName).onChange(async (value) => {
+					this.#plugin.settings.assistantName = value;
+					await this.#plugin.saveSettings();
+				}),
+			);
+
 		// folder for chat files
 		new Setting(containerEl)
 			.setName('Chat Folder')

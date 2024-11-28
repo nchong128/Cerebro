@@ -11,7 +11,7 @@ export type ChatFrontmatter = Omit<
 	title: string;
 	tags: FrontMatterCache;
 	llm: LLM;
-	system_commands: string[] | null;
+	system_commands: string[];
 };
 
 export type ImageSource = {

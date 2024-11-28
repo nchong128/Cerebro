@@ -2,7 +2,13 @@ import { ChatFrontmatter, ImageSource, Message, MessageImage, MessageText } from
 import { Editor, EditorPosition, MarkdownView, TFile } from 'obsidian';
 import pino from 'pino';
 import { App } from 'obsidian';
-import { assistantHeader, CSSAssets, userHeader, YAML_FRONTMATTER_REGEX } from './constants';
+import {
+	assistantHeader,
+	CSSAssets,
+	getCerebroBaseSystemPrompts,
+	userHeader,
+	YAML_FRONTMATTER_REGEX,
+} from './constants';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
 import { isValidFileExtension } from './helpers';
 
@@ -59,12 +65,10 @@ const extractRoleAndMessage = (
 ): Message => {
 	try {
 		if (!message.includes(CSSAssets.HEADER)) return { role: 'user', content: message };
-		console.log('message', message);
 		const userAssistantRegex = new RegExp(
 			`(?:${escapeRegExp(assistantHeader)}|${escapeRegExp(userHeader)})\\s*([\\s\\S]*)`,
 		);
 		const match = message.match(userAssistantRegex);
-		console.log('match', match);
 
 		if (!match) throw new Error('No matching header found');
 
@@ -80,7 +84,7 @@ const extractRoleAndMessage = (
 };
 
 export default class ChatInterface {
-	private settings: CerebroSettings;
+	public settings: CerebroSettings;
 	private headingPrefix: string;
 	private editor: Editor;
 	public editorPosition: EditorPosition;
@@ -231,6 +235,11 @@ export default class ChatInterface {
 					? metaMatter.model
 					: this.settings.llmSettings[this.settings.defaultLLM].model;
 
+			const system_commands = [
+				...getCerebroBaseSystemPrompts(this.settings),
+				metaMatter?.systemCommands || metaMatter?.system || [],
+			];
+
 			return {
 				llm,
 				model,
@@ -246,7 +255,7 @@ export default class ChatInterface {
 				n: metaMatter?.n || null,
 				logit_bias: metaMatter?.logit_bias || null,
 				user: metaMatter?.user || null,
-				system_commands: metaMatter?.system_commands || null,
+				system_commands,
 			};
 		} catch (err) {
 			throw new Error('Error getting frontmatter');
