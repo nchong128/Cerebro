@@ -6,7 +6,7 @@ import {
 	sanitizeTitle,
 	writeInferredTitleToEditor,
 } from 'lib/helpers';
-import { SettingsTab } from './views/settings';
+import { SettingsTab } from './views/settingsTab';
 import { ChatTemplatesHandler } from './views/chatTemplates';
 import { CerebroMessages, ERROR_NOTICE_TIMEOUT_MILLISECONDS } from './constants';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
@@ -23,7 +23,7 @@ const logger = pino({
 });
 
 export default class Cerebro extends Plugin {
-	public settings: CerebroSettings;
+	private settings: CerebroSettings;
 	private llmClients: Record<LLM, LLMClient>;
 
 	async onload(): Promise<void> {
@@ -125,6 +125,7 @@ export default class Cerebro extends Plugin {
 				// Plugin passes ChatInterface for it to work with the LLM client. LLM retrieves the chunks
 				// and passes into the ChatInterface to handle.
 				const frontmatter = chatInterface.getFrontmatter(this.app);
+				logger.info('[Cerebro] frontmatter', frontmatter);
 				const llm = this.llmClients[frontmatter.llm];
 				const messages = await chatInterface.getMessages(this.app);
 				chatInterface.completeUserResponse();

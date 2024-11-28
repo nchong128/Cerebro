@@ -57,7 +57,7 @@ export class OpenAIClient implements LLMClient {
 		chatInterface: ChatInterface,
 	): Promise<Message> {
 		if (frontmatter.system_commands) {
-			this.appendSystemCommands(frontmatter.system_commands, messages);
+			this.appendSystemCommands([...frontmatter.system_commands], messages);
 		}
 
 		const chatResponse = await this.createChatCompletion(

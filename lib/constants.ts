@@ -1,12 +1,18 @@
+import { CerebroSettings } from './settings';
+
 export const PLUGIN_NAME = 'Cerebro';
 
 export const YAML_FRONTMATTER_REGEX = /---\s*[\s\S]*?\s*---/g;
 
 export const ERROR_NOTICE_TIMEOUT_MILLISECONDS = 10000;
 
-// Prompts
+export const CerebroBaseSystemPrompts = ['Your name is Cerebro.'];
 
-// System messages
+export const getCerebroBaseSystemPrompts = (settings: CerebroSettings): string[] => {
+	return [`Your name is ${settings.assistantName}. You are speaking to ${settings.username}.`];
+};
+
+// Cerebro plugin messages
 export enum CerebroMessages {
 	CALLING_API = '[Cerebro] Calling API',
 	INFER_TITLE_MESSAGE_TOO_SHORT_FAILURE = 'Not enough messages to infer title. Minimum 2 messages.',
