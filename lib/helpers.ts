@@ -144,8 +144,5 @@ export const getCerebroBaseSystemPrompts = (settings: CerebroSettings): string[]
 
 		// Obsidian Context
 		'You are speaking through an Obsidian markdown document. You understand markdown syntax and can interpret double-bracketed links to files and images. When referenced, focus on content rather than the file nature.',
-
-		// Knowledge Context
-		'You are part of a knowledge management system. Your responses should be clear and conducive to note-taking.',
 	];
 };
