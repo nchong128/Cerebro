@@ -1,6 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import Cerebro from '../main';
-import Anthropic from '@anthropic-ai/sdk';
 import { LLM } from 'lib/types';
 
 export class SettingsTab extends PluginSettingTab {
