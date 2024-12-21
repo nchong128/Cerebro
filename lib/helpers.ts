@@ -4,8 +4,12 @@ import { FolderCreationModal } from './views/folderCreation';
 import {
 	ImageExtension,
 	ImageExtensionToMimeType,
+	ImageMessageContent,
+	Message,
 	PDFFileExtension,
+	PDFMessageContent,
 	TextFileExtension,
+	TextMessageContent,
 } from './types';
 import { CerebroSettings } from './settings';
 
@@ -156,4 +160,25 @@ export const getCerebroBaseSystemPrompts = (settings: CerebroSettings): string[]
 		// Obsidian Context
 		'You are speaking through an Obsidian markdown document. You understand markdown syntax and can interpret double-bracketed links to files and images. When referenced, focus on content rather than the file nature.',
 	];
+};
+
+export const isTextContent = (
+	mc: TextMessageContent | ImageMessageContent | PDFMessageContent,
+): mc is TextMessageContent => {
+	return mc.type === 'text';
+};
+
+export const getTextOnlyContent = (messages: Message[]): Message[] => {
+	return messages.map((message) => {
+		if (typeof message.content === 'string') {
+			return message;
+		}
+		return {
+			...message,
+			content: message.content
+				.filter(isTextContent)
+				.map((content) => content.text)
+				.join('\n'),
+		};
+	});
 };

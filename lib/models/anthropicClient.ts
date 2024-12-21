@@ -3,7 +3,7 @@ import { ChatFrontmatter, Message } from 'lib/types';
 import { Notice } from 'obsidian';
 import { LLMClient } from './client';
 import ChatInterface from 'lib/chatInterface';
-import { unfinishedCodeBlock } from 'lib/helpers';
+import { getTextOnlyContent, unfinishedCodeBlock } from 'lib/helpers';
 import pino from 'pino';
 import {
 	InputJSONDelta,
@@ -148,7 +148,11 @@ export class AnthropicClient implements LLMClient {
 			new Notice(CerebroMessages.INFER_TITLE_MESSAGE_TOO_SHORT_FAILURE);
 		}
 
-		const INFER_TITLE_PROMPT = `Infer title from the summary of the content of these messages. The title **cannot** contain any of the following characters: colon, back slash or forward slash. Just return the title. Write the title in ${inferTitleLanguage}. \nMessages:\n\n${JSON.stringify(messages)}`;
+		const textMessages = getTextOnlyContent(messages);
+
+		const textJson = JSON.stringify(textMessages);
+
+		const INFER_TITLE_PROMPT = `Infer title from the summary of the content of these messages. The title **cannot** contain any of the following characters: colon, back slash or forward slash. Just return the title. Write the title in ${inferTitleLanguage}. \nMessages:\n\n${textJson}`;
 
 		const titleMessage: Anthropic.Messages.MessageParam[] = [
 			{
