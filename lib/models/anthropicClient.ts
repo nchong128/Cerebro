@@ -1,11 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
 	ChatFrontmatter,
-	ImageMessageContent,
 	Message,
 	MessageContent,
-	DocumentMessageContent,
-	TextMessageContent,
 } from 'lib/types';
 import { Notice } from 'obsidian';
 import { LLMClient } from './client';
