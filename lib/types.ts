@@ -14,26 +14,15 @@ export type ChatFrontmatter = Omit<
 	system_commands: string[];
 };
 
-export type ImageSource = {
-	type: 'base64';
-	media_type: string;
-	data: string;
-};
+export enum TextFileExtension {
+	MD = 'md',
+	TXT = 'txt',
+}
 
-export type MessageImage = {
-	type: 'image';
-	source: ImageSource;
-};
-
-export type MessageText = {
+export type TextMessageContent = {
 	type: 'text';
 	text: string;
 };
-
-export type MessageContent = string | Array<MessageText | MessageImage>;
-
-export type Message = { role: string; content: MessageContent };
-
 export enum ImageExtensionToMimeType {
 	PNG = 'image/png',
 	JPG = 'image/jpeg',
@@ -42,7 +31,34 @@ export enum ImageExtensionToMimeType {
 }
 export type ImageExtension = keyof typeof ImageExtensionToMimeType;
 
-export enum TextFileExtension {
-	MD = 'md',
-	TXT = 'txt',
+export type ImageSource = {
+	type: 'base64';
+	media_type: string;
+	data: string;
+};
+
+export type ImageMessageContent = {
+	type: 'image';
+	source: ImageSource;
+};
+
+export enum PDFFileExtension {
+	PDF = 'pdf',
 }
+
+export type PDFSource = {
+	type: 'base64';
+	media_type: 'application/pdf';
+	data: string;
+};
+
+export type PDFMessageContent = {
+	type: 'pdf';
+	source: PDFSource;
+};
+
+export type MessageContent =
+	| string
+	| Array<TextMessageContent | ImageMessageContent | PDFMessageContent>;
+
+export type Message = { role: string; content: MessageContent };

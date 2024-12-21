@@ -1,7 +1,12 @@
 import { FileManager, MarkdownView, Notice, Vault, App } from 'obsidian';
 import pino from 'pino';
 import { FolderCreationModal } from './views/folderCreation';
-import { ImageExtension, ImageExtensionToMimeType, TextFileExtension } from './types';
+import {
+	ImageExtension,
+	ImageExtensionToMimeType,
+	PDFFileExtension,
+	TextFileExtension,
+} from './types';
 import { CerebroSettings } from './settings';
 
 const logger = pino({
@@ -80,14 +85,20 @@ export const createFolderModal = async (
 };
 
 // Helper function to check if a filepath is an image
-export function isValidImageExtension(ext: string): ext is ImageExtension {
+export const isValidImageExtension = (ext: string): ext is ImageExtension => {
 	return Object.keys(ImageExtensionToMimeType).includes(ext.toUpperCase());
-}
+};
 
 // Helper function to check if a filepath is a text file
-export function isValidFileExtension(ext: string): ext is TextFileExtension {
+export const isValidFileExtension = (ext: string): ext is TextFileExtension => {
 	return Object.keys(TextFileExtension).includes(ext.toUpperCase());
-}
+};
+
+// Helper function to check if a filepath is a pdf file
+export const isValidPDFExtension = (ext: string | undefined): ext is PDFFileExtension => {
+	if (!ext) return false;
+	return Object.keys(PDFFileExtension).includes(ext.toUpperCase());
+};
 
 // only proceed to infer title if the title is in timestamp format
 export const isTitleTimestampFormat = (title: string, dateFormat: string): boolean => {

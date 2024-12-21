@@ -9,11 +9,11 @@ import { chooseChatTemplateCommand } from './template';
 import { clearChatCommand } from './clear';
 
 export const getCommands = (plugin: Cerebro): Command[] => [
-  createNewChatCommand(plugin),
-  chatCommand(plugin),
-  addDividerCommand(plugin),
-  addCommentBlockCommand(plugin),
-  inferTitleCommand(plugin),
-  chooseChatTemplateCommand(plugin),
-  clearChatCommand(plugin)
+	createNewChatCommand(plugin),
+	chatCommand(plugin),
+	addDividerCommand(plugin),
+	addCommentBlockCommand(plugin),
+	inferTitleCommand(plugin),
+	chooseChatTemplateCommand(plugin),
+	clearChatCommand(plugin),
 ];
