@@ -7,7 +7,7 @@ import {
 	ImageMessageContent,
 	Message,
 	PDFFileExtension,
-	PDFMessageContent,
+	DocumentMessageContent,
 	TextFileExtension,
 	TextMessageContent,
 } from './types';
@@ -163,7 +163,7 @@ export const getCerebroBaseSystemPrompts = (settings: CerebroSettings): string[]
 };
 
 export const isTextContent = (
-	mc: TextMessageContent | ImageMessageContent | PDFMessageContent,
+	mc: TextMessageContent | ImageMessageContent | DocumentMessageContent,
 ): mc is TextMessageContent => {
 	return mc.type === 'text';
 };
