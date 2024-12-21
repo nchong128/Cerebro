@@ -4,8 +4,10 @@ import {
 	ImageExtension,
 	ImageExtensionToMimeType,
 	Message,
-	MessageImage,
-	MessageText,
+	ImageMessageContent,
+	TextMessageContent,
+	PDFSource,
+	PDFMessageContent,
 } from 'lib/types';
 import { Editor, EditorPosition, MarkdownView, TFile } from 'obsidian';
 import pino from 'pino';
@@ -13,7 +15,7 @@ import { App } from 'obsidian';
 import { assistantHeader, CSSAssets, userHeader, YAML_FRONTMATTER_REGEX } from './constants';
 import { getCerebroBaseSystemPrompts } from './helpers';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
-import { isValidFileExtension, isValidImageExtension } from './helpers';
+import { isValidFileExtension, isValidImageExtension, isValidPDFExtension } from './helpers';
 
 const logger = pino({
 	level: 'info',
@@ -322,8 +324,9 @@ export default class ChatInterface {
 		 *
 		 */
 		const fileRegex = /(?<!`[^`]*)\[\[(.*?)(?:\|.*?)?\]\](?![^`]*`)/g;
-		const imageSources: ImageSource[] = [];
-		const messageText: MessageText[] = [];
+		const images: ImageMessageContent[] = [];
+		const texts: TextMessageContent[] = [];
+		const pdfs: PDFMessageContent[] = [];
 
 		// Find all matches
 		const matches = (message.content as string).match(fileRegex);
@@ -340,27 +343,31 @@ export default class ChatInterface {
 			if (file && file instanceof TFile) {
 				if (isValidImageExtension(file?.extension)) {
 					try {
-						imageSources.push(await this.getImageSourceFromFile(app, file));
+						images.push({
+							type: 'image',
+							source: await this.getImageSourceFromFile(app, file),
+						});
 					} catch (error) {
 						console.error(`Failed to process image ${filePath}:`, error);
 					}
+				} else if (isValidPDFExtension(file?.extension)) {
+					try {
+						pdfs.push({
+							type: 'pdf',
+							source: await this.getPDFSourceFromFile(app, file),
+						});
+					} catch (error) {
+						console.error(`Failed to process PDF ${filePath}:`, error);
+					}
 				} else if (isValidFileExtension(file?.extension)) {
 					try {
-						messageText.push(await this.getMessageTextFromFile(app, file));
+						texts.push(await this.getMessageTextFromFile(app, file));
 					} catch (error) {
 						console.error(`Failed to process file ${filePath}:`, error);
 					}
 				}
 			}
 		}
-
-		const messageImages: MessageImage[] = imageSources.map((imageSource) => {
-			return {
-				type: 'image',
-				source: imageSource,
-			};
-		});
-
 		return {
 			...message,
 			content: [
@@ -368,8 +375,9 @@ export default class ChatInterface {
 					type: 'text',
 					text: message.content as string,
 				},
-				...messageImages,
-				...messageText,
+				...images,
+				...texts,
+				...pdfs,
 			],
 		};
 	}
@@ -424,7 +432,21 @@ export default class ChatInterface {
 		};
 	}
 
-	private async getMessageTextFromFile(app: App, textFile: TFile): Promise<MessageText> {
+	private async getPDFSourceFromFile(app: App, pdfFile: TFile): Promise<PDFSource> {
+		// Read the file as an array buffer
+		const arrayBuffer = await app.vault.readBinary(pdfFile);
+
+		// Convert array buffer to base64
+		const base64 = Buffer.from(arrayBuffer).toString('base64');
+
+		return {
+			type: 'base64',
+			media_type: 'application/pdf',
+			data: base64,
+		};
+	}
+
+	private async getMessageTextFromFile(app: App, textFile: TFile): Promise<TextMessageContent> {
 		const text = await app.vault.cachedRead(textFile);
 
 		return {
