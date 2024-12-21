@@ -7,7 +7,7 @@ import {
 	ImageMessageContent,
 	TextMessageContent,
 	PDFSource,
-	PDFMessageContent,
+	DocumentMessageContent,
 } from 'lib/types';
 import { Editor, EditorPosition, MarkdownView, TFile } from 'obsidian';
 import pino from 'pino';
@@ -326,7 +326,7 @@ export default class ChatInterface {
 		const fileRegex = /(?<!`[^`]*)\[\[(.*?)(?:\|.*?)?\]\](?![^`]*`)/g;
 		const images: ImageMessageContent[] = [];
 		const texts: TextMessageContent[] = [];
-		const pdfs: PDFMessageContent[] = [];
+		const pdfs: DocumentMessageContent[] = [];
 
 		// Find all matches
 		const matches = (message.content as string).match(fileRegex);
@@ -353,7 +353,7 @@ export default class ChatInterface {
 				} else if (isValidPDFExtension(file?.extension)) {
 					try {
 						pdfs.push({
-							type: 'pdf',
+							type: 'document',
 							source: await this.getPDFSourceFromFile(app, file),
 						});
 					} catch (error) {

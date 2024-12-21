@@ -1,15 +1,26 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ChatFrontmatter, Message } from 'lib/types';
+import {
+	ChatFrontmatter,
+	ImageMessageContent,
+	Message,
+	MessageContent,
+	DocumentMessageContent,
+	TextMessageContent,
+} from 'lib/types';
 import { Notice } from 'obsidian';
 import { LLMClient } from './client';
 import ChatInterface from 'lib/chatInterface';
 import { getTextOnlyContent, unfinishedCodeBlock } from 'lib/helpers';
 import pino from 'pino';
 import {
+	Base64PDFSource,
+	ImageBlockParam,
 	InputJSONDelta,
 	RawMessageStreamEvent,
 	TextBlock,
 	TextDelta,
+	MessageParam,
+	ContentBlockParam,
 } from '@anthropic-ai/sdk/resources';
 import { Stream } from '@anthropic-ai/sdk/streaming';
 import { CerebroMessages } from 'lib/constants';
@@ -17,6 +28,34 @@ import { CerebroMessages } from 'lib/constants';
 const logger = pino({
 	level: 'info',
 });
+
+const formatMessageContent = (content: MessageContent): ContentBlockParam[] => {
+	if (typeof content === 'string') {
+		return [{ type: 'text', text: content }];
+	}
+
+	return content.map((block) => {
+		switch (block.type) {
+			case 'text':
+				return {
+					type: 'text',
+					text: block.text,
+				};
+			case 'document':
+				return {
+					type: 'document',
+					source: block.source as Base64PDFSource,
+				};
+			case 'image':
+				return {
+					type: 'image',
+					source: block.source as ImageBlockParam.Source,
+				};
+			default:
+				throw new Error(`Unknown message content type: ${block}`);
+		}
+	});
+};
 
 export class AnthropicClient implements LLMClient {
 	private client: Anthropic;
@@ -28,13 +67,18 @@ export class AnthropicClient implements LLMClient {
 		});
 	}
 
-	public async sendCreateMessageRequest(
-		messages: Anthropic.Messages.MessageParam[],
+	private async sendCreateMessageRequest(
+		messages: Message[],
 		{ max_tokens, model, stream, system_commands, temperature }: ChatFrontmatter,
 	) {
 		const system = system_commands.join('\n');
+		const formattedMessages: MessageParam[] = messages.map((msg) => ({
+			role: msg.role === 'user' ? 'user' : 'assistant',
+			content: formatMessageContent(msg.content),
+		}));
+
 		return this.client.messages.create({
-			messages,
+			messages: formattedMessages,
 			model,
 			max_tokens,
 			stream,
@@ -48,10 +92,7 @@ export class AnthropicClient implements LLMClient {
 		frontmatter: ChatFrontmatter,
 		chatInterface: ChatInterface,
 	): Promise<Message> {
-		const messageResponse = await this.sendCreateMessageRequest(
-			messages as Anthropic.Messages.MessageParam[],
-			frontmatter,
-		);
+		const messageResponse = await this.sendCreateMessageRequest(messages, frontmatter);
 
 		let responseStr;
 		// Handle non-streaming case
@@ -154,7 +195,7 @@ export class AnthropicClient implements LLMClient {
 
 		const INFER_TITLE_PROMPT = `Infer title from the summary of the content of these messages. The title **cannot** contain any of the following characters: colon, back slash or forward slash. Just return the title. Write the title in ${inferTitleLanguage}. \nMessages:\n\n${textJson}`;
 
-		const titleMessage: Anthropic.Messages.MessageParam[] = [
+		const titleMessage: MessageParam[] = [
 			{
 				role: 'user',
 				content: INFER_TITLE_PROMPT,

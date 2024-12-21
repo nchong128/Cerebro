@@ -52,13 +52,13 @@ export type PDFSource = {
 	data: string;
 };
 
-export type PDFMessageContent = {
-	type: 'pdf';
+export type DocumentMessageContent = {
+	type: 'document';
 	source: PDFSource;
 };
 
 export type MessageContent =
 	| string
-	| Array<TextMessageContent | ImageMessageContent | PDFMessageContent>;
+	| Array<TextMessageContent | ImageMessageContent | DocumentMessageContent>;
 
 export type Message = { role: string; content: MessageContent };
