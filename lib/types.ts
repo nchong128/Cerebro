@@ -22,7 +22,10 @@ export enum TextFileExtension {
 export type TextMessageContent = {
 	type: 'text';
 	text: string;
+	originalPath?: string;
+	resolvedContent?: (TextMessageContent | ImageMessageContent | DocumentMessageContent)[];
 };
+
 export enum ImageExtensionToMimeType {
 	PNG = 'image/png',
 	JPG = 'image/jpeg',
@@ -40,6 +43,7 @@ export type ImageSource = {
 export type ImageMessageContent = {
 	type: 'image';
 	source: ImageSource;
+	originalPath?: string;
 };
 
 export enum PDFFileExtension {
@@ -55,6 +59,7 @@ export type PDFSource = {
 export type DocumentMessageContent = {
 	type: 'document';
 	source: PDFSource;
+	originalPath?: string;
 };
 
 export type MessageContent =

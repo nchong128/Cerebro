@@ -6,8 +6,8 @@ import {
 	Message,
 	ImageMessageContent,
 	TextMessageContent,
-	PDFSource,
 	DocumentMessageContent,
+	PDFSource,
 } from 'lib/types';
 import { Editor, EditorPosition, MarkdownView, TFile } from 'obsidian';
 import pino from 'pino';
@@ -89,6 +89,7 @@ const extractRoleAndMessage = (
 };
 
 export default class ChatInterface {
+	private readonly MAX_DEPTH = 2; // Maximum depth of document resolution
 	public settings: CerebroSettings;
 	private editor: Editor;
 	public editorPosition: EditorPosition;
@@ -313,32 +314,41 @@ export default class ChatInterface {
 		this.stopStreaming = false;
 	}
 
-	private async parseFilesFromMessage(app: App, message: Message): Promise<Message> {
-		/**
-		 * Regex to match wiki-style links [[like this]] or [[like this|with description]]
-		 * Excludes matches within backtick-delimited code blocks
-		 *
-		 * @example
-		 * "Some [[wiki link]] and `[[not a link]]`"
-		 * // Matches: ["[[wiki link]]"]
-		 *
-		 */
+	private async parseFilesFromMessage(
+		app: App,
+		message: Message,
+		depth = 0,
+		processedFiles: Set<string> = new Set(),
+	): Promise<Message> {
+		if (depth > this.MAX_DEPTH) {
+			return message;
+		}
+
 		const fileRegex = /(?<!`[^`]*)\[\[(.*?)(?:\|.*?)?\]\](?![^`]*`)/g;
 		const images: ImageMessageContent[] = [];
 		const texts: TextMessageContent[] = [];
 		const pdfs: DocumentMessageContent[] = [];
 
-		// Find all matches
-		const matches = (message.content as string).match(fileRegex);
+		// If message.content is an array, we only process the text contents
+		const contentToProcess = Array.isArray(message.content)
+			? message.content
+					.filter((c) => c.type === 'text')
+					.map((c) => (c as TextMessageContent).text)
+					.join('\n')
+			: (message.content as string);
+
+		const matches = contentToProcess.match(fileRegex);
 		if (!matches) return message;
 
-		// Process each match
 		for (const match of matches) {
-			// Remove brackets to get the path
 			const filePath = match.replace(/\[\[|\]\]/g, '').split('|')[0];
-
-			// Get the file from the vault
 			const file = app.metadataCache.getFirstLinkpathDest(filePath, '');
+
+			// Skip if we've already processed this file to prevent cycles
+			if (processedFiles.has(filePath)) {
+				continue;
+			}
+			processedFiles.add(filePath);
 
 			if (file && file instanceof TFile) {
 				if (isValidImageExtension(file?.extension)) {
@@ -346,6 +356,7 @@ export default class ChatInterface {
 						images.push({
 							type: 'image',
 							source: await this.getImageSourceFromFile(app, file),
+							originalPath: filePath,
 						});
 					} catch (error) {
 						console.error(`Failed to process image ${filePath}:`, error);
@@ -355,25 +366,42 @@ export default class ChatInterface {
 						pdfs.push({
 							type: 'document',
 							source: await this.getPDFSourceFromFile(app, file),
+							originalPath: filePath,
 						});
 					} catch (error) {
 						console.error(`Failed to process PDF ${filePath}:`, error);
 					}
 				} else if (isValidFileExtension(file?.extension)) {
 					try {
-						texts.push(await this.getMessageTextFromFile(app, file));
+						const fileContent = await app.vault.cachedRead(file);
+						const nestedContent = await this.parseFilesFromMessage(
+							app,
+							{ role: 'user', content: fileContent },
+							depth + 1,
+							processedFiles,
+						);
+
+						texts.push({
+							type: 'text',
+							text: fileContent,
+							originalPath: filePath,
+							resolvedContent: Array.isArray(nestedContent.content)
+								? nestedContent.content
+								: undefined,
+						});
 					} catch (error) {
 						console.error(`Failed to process file ${filePath}:`, error);
 					}
 				}
 			}
 		}
+
 		return {
 			...message,
 			content: [
 				{
 					type: 'text',
-					text: message.content as string,
+					text: contentToProcess,
 				},
 				...images,
 				...texts,

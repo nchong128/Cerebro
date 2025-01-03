@@ -1,14 +1,16 @@
 import Anthropic from '@anthropic-ai/sdk';
 import {
 	ChatFrontmatter,
+	DocumentMessageContent,
+	ImageMessageContent,
 	Message,
 	MessageContent,
+	TextMessageContent,
 } from 'lib/types';
 import { Notice } from 'obsidian';
 import { LLMClient } from './client';
 import ChatInterface from 'lib/chatInterface';
 import { getTextOnlyContent, unfinishedCodeBlock } from 'lib/helpers';
-import pino from 'pino';
 import {
 	Base64PDFSource,
 	ImageBlockParam,
@@ -21,37 +23,119 @@ import {
 } from '@anthropic-ai/sdk/resources';
 import { Stream } from '@anthropic-ai/sdk/streaming';
 import { CerebroMessages } from 'lib/constants';
+import { logger } from 'lib/logger';
 
-const logger = pino({
-	level: 'info',
-});
+interface DocumentNode {
+	path: string;
+	type: 'text' | 'image' | 'document';
+	references: Set<string>; // paths of documents this references
+}
 
 const formatMessageContent = (content: MessageContent): ContentBlockParam[] => {
 	if (typeof content === 'string') {
 		return [{ type: 'text', text: content }];
 	}
 
-	return content.map((block) => {
+	const formattedBlocks: ContentBlockParam[] = [];
+	const documentGraph = new Map<string, DocumentNode>();
+
+	// Create a new document node
+	const createDocumentNode = (
+		path: string,
+		type: 'text' | 'image' | 'document',
+	): DocumentNode => {
+		return {
+			path,
+			type,
+			references: new Set(),
+		};
+	};
+
+	// Add or get a node from the document graph
+	const addDocumentNode = (path: string, type: 'text' | 'image' | 'document'): DocumentNode => {
+		if (!documentGraph.has(path)) {
+			const node = createDocumentNode(path, type);
+			documentGraph.set(path, node);
+		}
+		return documentGraph.get(path)!;
+	};
+
+	// Recursive function to process blocks and their nested content
+	const processBlock = (
+		block: TextMessageContent | ImageMessageContent | DocumentMessageContent,
+		parentPath?: string,
+	) => {
+		if (!block.originalPath) {
+			formattedBlocks.push({ type: 'text', text: (block as TextMessageContent).text });
+			return;
+		}
+
+		// Add reference to parent's references if this is a nested document
+		if (parentPath) {
+			const parentNode = documentGraph.get(parentPath);
+			if (parentNode) {
+				parentNode.references.add(block.originalPath);
+			}
+		}
+
+		const node = addDocumentNode(block.originalPath, block.type);
+
+		// Add document content
+		formattedBlocks.push({
+			type: 'text',
+			text: `[${block.originalPath}]\n`,
+		});
+
 		switch (block.type) {
 			case 'text':
-				return {
-					type: 'text',
-					text: block.text,
-				};
-			case 'document':
-				return {
-					type: 'document',
-					source: block.source as Base64PDFSource,
-				};
+				formattedBlocks.push({ type: 'text', text: block.text });
+				// Recursively process nested content
+				if (block.resolvedContent) {
+					block.resolvedContent.forEach((nestedBlock) => {
+						processBlock(nestedBlock, block.originalPath);
+					});
+				}
+				break;
 			case 'image':
-				return {
+				formattedBlocks.push({
 					type: 'image',
 					source: block.source as ImageBlockParam.Source,
-				};
-			default:
-				throw new Error(`Unknown message content type: ${block}`);
+				});
+				break;
+			case 'document':
+				formattedBlocks.push({
+					type: 'document',
+					source: block.source as Base64PDFSource,
+				});
+				break;
 		}
+	};
+
+	// Add initial explanation
+	formattedBlocks.push({
+		type: 'text',
+		text: 'This conversation references multiple documents. Each document may contain embedded content from other documents.\n',
 	});
+
+	// Process all blocks recursively
+	content.forEach((block) => processBlock(block));
+
+	// Add document relationships if there are multiple documents
+	if (documentGraph.size > 1) {
+		formattedBlocks.push({
+			type: 'text',
+			text:
+				'\nDocument relationships:\n' +
+				Array.from(documentGraph.entries())
+					.map(([path, node]) => {
+						const references = Array.from(node.references);
+						return `${path} → ${references.length ? references.join(', ') : '(no embedded documents)'}`;
+					})
+					.join('\n'),
+		});
+	}
+
+	return formattedBlocks;
 };
 
 export class AnthropicClient implements LLMClient {
@@ -73,6 +157,7 @@ export class AnthropicClient implements LLMClient {
 			role: msg.role === 'user' ? 'user' : 'assistant',
 			content: formatMessageContent(msg.content),
 		}));
+		logger.debug('[Cerebro] Formatted messages for Claude', formattedMessages);
 
 		return this.client.messages.create({
 			messages: formattedMessages,
