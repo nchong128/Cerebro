@@ -90,11 +90,12 @@ const extractRoleAndMessage = (
 
 export default class ChatInterface {
 	private readonly MAX_DEPTH = 2; // Maximum depth of document resolution
-	public settings: CerebroSettings;
 	private editor: Editor;
-	public editorPosition: EditorPosition;
 	private view: MarkdownView;
 	private stopStreaming = false;
+
+	public settings: CerebroSettings;
+	public editorPosition: EditorPosition;
 
 	constructor(settings: CerebroSettings, editor: Editor, view: MarkdownView) {
 		this.settings = settings;
@@ -102,7 +103,10 @@ export default class ChatInterface {
 		this.view = view;
 	}
 
-	public async getMessages(app: App): Promise<Message[]> {
+	public async getMessages(app: App): Promise<{
+		messages: Message[];
+		files: Set<string>;
+	}> {
 		// Retrieve and process messages
 		const rawEditorVal = this.editor.getValue();
 		const bodyWithoutYML = removeYMLFromMessage(rawEditorVal);
@@ -115,7 +119,36 @@ export default class ChatInterface {
 					userHeader(this.settings.username, this.settings.headingLevel),
 				),
 			);
-		return Promise.all(messages.map((message) => this.parseFilesFromMessage(app, message)));
+
+		const processedFiles = new Set<string>();
+		const messagesWithFiles = await Promise.all(
+			messages.map((message) => this.parseFilesFromMessage(app, message, 0, processedFiles)),
+		);
+		return {
+			messages: messagesWithFiles,
+			files: processedFiles,
+		};
+	}
+
+	public async updateFrontmatterWithFiles(app: App, processedFiles: Set<string>): Promise<void> {
+		try {
+			const activeFile = this.view.file;
+			if (!activeFile) {
+				throw new Error('No active file');
+			}
+
+			// Convert files to Obsidian wiki link format
+			const linkedFiles = Array.from(processedFiles).map((file) => `[[${file}]]`);
+
+			console.log('linkedFiles', linkedFiles);
+			// Use Obsidian's metadata API
+			await app.fileManager.processFrontMatter(activeFile, (frontmatter) => {
+				frontmatter['files'] = linkedFiles;
+			});
+		} catch (err) {
+			logger.error('Error updating frontmatter with files:', err);
+			throw new Error('Failed to update frontmatter with files');
+		}
 	}
 
 	public addHR(): void {
@@ -163,7 +196,7 @@ export default class ChatInterface {
 		this.editorPosition = this.moveCursorToEndOfLine(this.editor, message);
 	}
 
-	public moveCursorToEndOfFile(editor: Editor) {
+	public moveCursorToEndOfFile(editor: Editor): EditorPosition {
 		try {
 			// Get length of file
 			const length = editor.lastLine();
@@ -317,14 +350,23 @@ export default class ChatInterface {
 	private async parseFilesFromMessage(
 		app: App,
 		message: Message,
-		depth = 0,
-		processedFiles: Set<string> = new Set(),
+		depth: number,
+		processedFiles: Set<string>,
 	): Promise<Message> {
+		// Stop if we've exceeded the max depth
 		if (depth > this.MAX_DEPTH) {
 			return message;
 		}
 
+		// Matches Obsidian-style wiki links [[file]] or [[file|alias]], but ignores any matches inside inline code blocks
+		// (?<!`[^`]*)     - Negative lookbehind to ensure not preceded by backtick
+		// \[\[            - Match opening [[
+		// (.*?)           - Capture any characters (non-greedy) for filename
+		// (?:\|.*?)?      - Optionally match | followed by alias text (non-capturing)
+		// \]\]            - Match closing ]]
+		// (?![^`]*`)      - Negative lookahead to ensure not inside code block
 		const fileRegex = /(?<!`[^`]*)\[\[(.*?)(?:\|.*?)?\]\](?![^`]*`)/g;
+
 		const images: ImageMessageContent[] = [];
 		const texts: TextMessageContent[] = [];
 		const pdfs: DocumentMessageContent[] = [];
@@ -337,17 +379,15 @@ export default class ChatInterface {
 					.join('\n')
 			: (message.content as string);
 
-		const matches = contentToProcess.match(fileRegex);
-		if (!matches) return message;
-
-		for (const match of matches) {
+		// Find any file matches
+		const filesMatches = contentToProcess.match(fileRegex);
+		if (!filesMatches) return message;
+		for (const match of filesMatches) {
 			const filePath = match.replace(/\[\[|\]\]/g, '').split('|')[0];
 			const file = app.metadataCache.getFirstLinkpathDest(filePath, '');
 
 			// Skip if we've already processed this file to prevent cycles
-			if (processedFiles.has(filePath)) {
-				continue;
-			}
+			if (processedFiles.has(filePath)) continue;
 			processedFiles.add(filePath);
 
 			if (file && file instanceof TFile) {
