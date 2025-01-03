@@ -122,7 +122,7 @@ export default class ChatInterface {
 
 		const processedFiles = new Set<string>();
 		const messagesWithFiles = await Promise.all(
-			messages.map((message) => this.parseFilesFromMessage(app, message, 0, processedFiles)),
+			messages.map((message) => this.parseFilesFromMessage(app, message, 1, processedFiles)),
 		);
 		return {
 			messages: messagesWithFiles,
@@ -414,9 +414,11 @@ export default class ChatInterface {
 				} else if (isValidFileExtension(file?.extension)) {
 					try {
 						const fileContent = await app.vault.cachedRead(file);
+						// Remove YAML frontmatter before processing the file content
+						const contentWithoutYAML = removeYMLFromMessage(fileContent);
 						const nestedContent = await this.parseFilesFromMessage(
 							app,
-							{ role: 'user', content: fileContent },
+							{ role: 'user', content: contentWithoutYAML },
 							depth + 1,
 							processedFiles,
 						);

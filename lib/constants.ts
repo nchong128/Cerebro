@@ -32,7 +32,7 @@ export enum CerebroMessages {
 	CALLING_API = '[Cerebro] Calling API',
 	INFER_TITLE_MESSAGE_TOO_SHORT_FAILURE = 'Not enough messages to infer title. Minimum 2 messages.',
 	INFER_TITLE_UNKNOWN_FAILURE = 'Title unable to be inferred',
-	UPDATING_PROPERTIES = '[Cerebro] Upating properties',
+	UPDATING_PROPERTIES = '[Cerebro] Updating files accessed',
 	EMPTY = '',
 }
 

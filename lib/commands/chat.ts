@@ -32,8 +32,10 @@ export const chatCommand = (plugin: Cerebro): Command => ({
 
 		plugin.statusBar.setText(CerebroMessages.EMPTY);
 
-		plugin.statusBar.setText(CerebroMessages.UPDATING_PROPERTIES);
-		chatInterface.updateFrontmatterWithFiles(plugin.app, files);
-		plugin.statusBar.setText(CerebroMessages.EMPTY);
+		if (files) {
+			new Notice(CerebroMessages.UPDATING_PROPERTIES);
+			chatInterface.updateFrontmatterWithFiles(plugin.app, files);
+			plugin.statusBar.setText(CerebroMessages.EMPTY);
+		}
 	},
 });
