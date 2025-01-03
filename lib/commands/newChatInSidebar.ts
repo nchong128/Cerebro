@@ -3,12 +3,12 @@ import Cerebro from '../main';
 import ChatInterface from '../chatInterface';
 import { ERROR_NOTICE_TIMEOUT_MILLISECONDS } from '../constants';
 import { logger } from '../logger';
-import { createNewChatFile, openInMainEditor } from './chatCreation';
+import { createNewChatFile, openInSidebar } from './chatCreation';
 
-export const createNewChatCommand = (plugin: Cerebro): Command => ({
-	id: 'cerebro-create-new-chat',
-	name: 'Create new chat',
-	icon: 'message-square-plus',
+export const createNewChatInSidebarCommand = (plugin: Cerebro): Command => ({
+	id: 'cerebro-create-new-chat-in-sidebar',
+	name: 'Create new chat in sidebar',
+	icon: 'panel-right',
 	editorCallback: async (editor: Editor, view: MarkdownView) => {
 		const chatInterface = new ChatInterface(plugin.settings, editor, view);
 
@@ -16,7 +16,7 @@ export const createNewChatCommand = (plugin: Cerebro): Command => ({
 			const selectedText = editor.getSelection();
 			const newFile = await createNewChatFile(plugin, selectedText);
 			if (!newFile) return;
-			openInMainEditor(plugin, newFile, chatInterface);
+			openInSidebar(plugin, newFile, chatInterface);
 		} catch (e) {
 			logger.error(`[Cerebro] Error when creating new chat`, e);
 			new Notice(

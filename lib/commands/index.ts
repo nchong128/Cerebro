@@ -7,9 +7,11 @@ import { addCommentBlockCommand } from './formatting';
 import { inferTitleCommand } from './title';
 import { chooseChatTemplateCommand } from './template';
 import { clearChatCommand } from './clear';
+import { createNewChatInSidebarCommand } from './newChatInSidebar';
 
 export const getCommands = (plugin: Cerebro): Command[] => [
 	createNewChatCommand(plugin),
+	createNewChatInSidebarCommand(plugin),
 	chatCommand(plugin),
 	addDividerCommand(plugin),
 	addCommentBlockCommand(plugin),
