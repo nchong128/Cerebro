@@ -16,6 +16,7 @@ export const chatCommand = (plugin: Cerebro): Command => ({
 		const frontmatter = chatInterface.getFrontmatter(plugin.app);
 		const llm = plugin.getLLMClient(frontmatter.llm);
 		const messages = await chatInterface.getMessages(plugin.app);
+		logger.debug(`[Cerebro] Retrieved messages`, messages);
 
 		chatInterface.completeUserResponse();
 
