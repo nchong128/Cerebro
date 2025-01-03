@@ -8,6 +8,7 @@ import { inferTitleCommand } from './title';
 import { chooseChatTemplateCommand } from './template';
 import { clearChatCommand } from './clear';
 import { createNewChatInSidebarCommand } from './newChatInSidebar';
+import { inlineAssistCommand } from './inline';
 
 export const getCommands = (plugin: Cerebro): Command[] => [
 	createNewChatCommand(plugin),
@@ -18,4 +19,5 @@ export const getCommands = (plugin: Cerebro): Command[] => [
 	inferTitleCommand(plugin),
 	chooseChatTemplateCommand(plugin),
 	clearChatCommand(plugin),
+	inlineAssistCommand(plugin),
 ];
