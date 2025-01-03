@@ -59,7 +59,7 @@ export class ChatTemplatesHandler extends SuggestModal<ChatTemplates> {
 	}
 
 	// Perform action on the selected suggestion.
-	public async onChooseSuggestion(template: ChatTemplates, evt: MouseEvent | KeyboardEvent) {
+	public async onChooseSuggestion(template: ChatTemplates) {
 		new Notice(`Selected ${template.title}`);
 		const templateText = await this.app.vault.read(template.file);
 		// use template text to create new file in chat folder

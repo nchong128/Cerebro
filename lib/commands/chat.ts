@@ -15,9 +15,8 @@ export const chatCommand = (plugin: Cerebro): Command => ({
 		const chatInterface = new ChatInterface(plugin.settings, editor, view);
 		const frontmatter = chatInterface.getFrontmatter(plugin.app);
 		const llm = plugin.getLLMClient(frontmatter.llm);
-		const messages = await chatInterface.getMessages(plugin.app);
+		const { messages, files } = await chatInterface.getMessages(plugin.app);
 		logger.debug(`[Cerebro] Retrieved messages`, messages);
-
 		chatInterface.completeUserResponse();
 
 		try {
@@ -31,6 +30,10 @@ export const chatCommand = (plugin: Cerebro): Command => ({
 			new Notice('[Cerebro] Chat failed: ' + e.message, ERROR_NOTICE_TIMEOUT_MILLISECONDS);
 		}
 
+		plugin.statusBar.setText(CerebroMessages.EMPTY);
+
+		plugin.statusBar.setText(CerebroMessages.UPDATING_PROPERTIES);
+		chatInterface.updateFrontmatterWithFiles(plugin.app, files);
 		plugin.statusBar.setText(CerebroMessages.EMPTY);
 	},
 });
