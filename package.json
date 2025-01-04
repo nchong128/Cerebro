@@ -1,7 +1,7 @@
 {
 	"name": "cerebro",
-	"version": "1.0.0",
-	"description": "An Obsidian-first AI-powered companion.",
+	"version": "1.0.1",
+	"description": "Obsidian-first, AI-powered second brain that thinks with you.",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
