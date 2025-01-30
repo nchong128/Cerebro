@@ -1,7 +1,7 @@
 -   Proper Obsidian plugin release workflow
 -   Agentic capabilities. Set an intention/goal with an agent. Watch it grow with you.
 -   Prompt caching (Anthropic)
-    -   Projects (anything with a shared tag for "project" will be available as context)
+-   Projects (anything with a shared tag for "project" will be available as context)
 -   Deep resolution of assets inside referenced images
     -   By default, can read up to 2 degrees away. Referencing document A will resolve document B but not C.
     -   Can specify to allow deeper resolutions

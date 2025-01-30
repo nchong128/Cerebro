@@ -7,7 +7,7 @@ export const stopStreamingCommand = (plugin: Cerebro): Command => ({
 	id: 'cerebro-stop-streaming',
 	name: 'Stop streaming',
 	icon: 'square',
-	editorCallback: async (editor: Editor, view: MarkdownView) => {
+	editorCallback: async (_: Editor, view: MarkdownView) => {
 		try {
 			const activeView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
 			if (!activeView) {

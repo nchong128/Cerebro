@@ -6,10 +6,7 @@ import ChatInterface from 'lib/chatInterface';
 import pino from 'pino';
 import { unfinishedCodeBlock } from 'lib/helpers';
 import { Stream } from 'openai/streaming';
-
-const logger = pino({
-	level: 'info',
-});
+import { logger } from 'lib/logger';
 
 export class OpenAIClient implements LLMClient {
 	private client: OpenAI;

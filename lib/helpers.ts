@@ -12,10 +12,7 @@ import {
 	TextMessageContent,
 } from './types';
 import { CerebroSettings } from './settings';
-
-const logger = pino({
-	level: 'info',
-});
+import { logger } from './logger';
 
 export const sanitizeTitle = (title: string): string => {
 	return title
