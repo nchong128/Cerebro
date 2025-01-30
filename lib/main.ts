@@ -1,6 +1,5 @@
 import { isTitleTimestampFormat, sanitizeTitle, writeInferredTitleToEditor } from 'lib/helpers';
-import { MarkdownView, Notice, Platform, Plugin } from 'obsidian';
-import pino from 'pino';
+import { MarkdownView, Notice, Platform, Plugin, TFile } from 'obsidian';
 import { getCommands } from './commands';
 import { CerebroMessages, ERROR_NOTICE_TIMEOUT_MILLISECONDS } from './constants';
 import { AnthropicClient } from './models/anthropicClient';
@@ -9,12 +8,11 @@ import { OpenAIClient } from './models/openAIClient';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
 import { LLM, Message } from './types';
 import { SettingsTab } from './views/settingsTab';
-
-const logger = pino({
-	level: 'info',
-});
+import { logger } from './logger';
+import ChatInterface from './chatInterface';
 
 export default class Cerebro extends Plugin {
+	public chatInterfaces: Map<TFile, ChatInterface> = new Map();
 	public settings: CerebroSettings;
 	public statusBar: HTMLElement;
 	private llmClients: Record<LLM, LLMClient>;
@@ -110,5 +108,9 @@ export default class Cerebro extends Plugin {
 	public async saveSettings() {
 		logger.info('[Cerebro] Saving settings');
 		await this.saveData(this.settings);
+	}
+
+	public async onunload() {
+		this.chatInterfaces.clear();
 	}
 }

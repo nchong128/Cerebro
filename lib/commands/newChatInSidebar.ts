@@ -9,13 +9,21 @@ export const createNewChatInSidebarCommand = (plugin: Cerebro): Command => ({
 	id: 'cerebro-create-new-chat-in-sidebar',
 	name: 'Create new chat in sidebar',
 	icon: 'panel-right',
-	editorCallback: async (editor: Editor, view: MarkdownView) => {
-		const chatInterface = new ChatInterface(plugin.settings, editor, view);
-
+	callback: async () => {
 		try {
-			const selectedText = editor.getSelection();
+			const activeView = plugin.app.workspace.getActiveViewOfType(MarkdownView);
+			const selectedText = activeView?.editor?.getSelection() || '';
+
 			const newFile = await createNewChatFile(plugin, selectedText);
 			if (!newFile) return;
+
+			const newView: any = await plugin.app.workspace.getLeaf('split').openFile(newFile);
+
+			if (!(newView instanceof MarkdownView)) return;
+
+			const chatInterface = new ChatInterface(plugin.settings, newView.editor, newView);
+			plugin.chatInterfaces.set(newFile, chatInterface);
+
 			openInSidebar(plugin, newFile, chatInterface);
 		} catch (e) {
 			logger.error(`[Cerebro] Error when creating new chat`, e);

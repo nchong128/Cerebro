@@ -221,19 +221,20 @@ export class AnthropicClient implements LLMClient {
 
 		// Process through each text chunk and paste
 		for await (const streamEvent of messageStream) {
+			if (chatInterface.stopStreaming) {
+				messageStream.controller.abort();
+				break;
+			}
+
 			if (streamEvent.type === 'content_block_start') {
 				const chunkText = (streamEvent.content_block as TextBlock).text;
 
 				// If text undefined, then do nothing
 				if (!chunkText) continue;
 
-				const shouldContinue = chatInterface.addStreamedChunk(chunkText);
-				if (!shouldContinue) {
-					break;
-				}
-
 				// Add chunk to full response
 				fullResponse += chunkText;
+				chatInterface.addStreamedChunk(chunkText);
 			} else if (streamEvent.type === 'content_block_delta') {
 				const chunkText =
 					(streamEvent.delta as TextDelta).text ||
@@ -242,13 +243,9 @@ export class AnthropicClient implements LLMClient {
 				// If text undefined, then do nothing
 				if (!chunkText) continue;
 
-				const shouldContinue = chatInterface.addStreamedChunk(chunkText);
-				if (!shouldContinue) {
-					break;
-				}
-
 				// Add chunk to full response
 				fullResponse += chunkText;
+				chatInterface.addStreamedChunk(chunkText);
 			} else if (streamEvent.type === 'message_delta') {
 				finishReason = streamEvent.delta.stop_reason;
 			}

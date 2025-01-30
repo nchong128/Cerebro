@@ -1,3 +1,2 @@
 -   can't save settings properly
--   no stop streaming feature
 -   changing providers in chat doesn't work

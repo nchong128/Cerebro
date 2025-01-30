@@ -9,6 +9,7 @@ import { chooseChatTemplateCommand } from './template';
 import { clearChatCommand } from './clear';
 import { createNewChatInSidebarCommand } from './newChatInSidebar';
 import { inlineAssistCommand } from './inline';
+import { stopStreamingCommand } from './stopStreaming';
 
 export const getCommands = (plugin: Cerebro): Command[] => [
 	createNewChatCommand(plugin),
@@ -20,4 +21,5 @@ export const getCommands = (plugin: Cerebro): Command[] => [
 	chooseChatTemplateCommand(plugin),
 	clearChatCommand(plugin),
 	inlineAssistCommand(plugin),
+	stopStreamingCommand(plugin),
 ];

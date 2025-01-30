@@ -12,7 +12,15 @@ export const chatCommand = (plugin: Cerebro): Command => ({
 		plugin.statusBar.setText(CerebroMessages.CALLING_API);
 		if (Platform.isMobile) new Notice(CerebroMessages.CALLING_API);
 
-		const chatInterface = new ChatInterface(plugin.settings, editor, view);
+		if (!view.file) throw new Error('No active file');
+
+		// Get or create ChatInterface for this file
+		let chatInterface = plugin.chatInterfaces.get(view.file);
+		if (!chatInterface) {
+			chatInterface = new ChatInterface(plugin.settings, editor, view);
+			plugin.chatInterfaces.set(view.file, chatInterface);
+		}
+
 		const frontmatter = chatInterface.getFrontmatter(plugin.app);
 		const llm = plugin.getLLMClient(frontmatter.llm);
 		const { messages, files } = await chatInterface.getMessages(plugin.app);

@@ -10,7 +10,6 @@ import {
 	PDFSource,
 } from 'lib/types';
 import { Editor, EditorPosition, MarkdownView, TFile } from 'obsidian';
-import pino from 'pino';
 import { App } from 'obsidian';
 import { assistantHeader, CSSAssets, userHeader, YAML_FRONTMATTER_REGEX } from './constants';
 import { getCerebroBaseSystemPrompts } from './helpers';
@@ -94,7 +93,7 @@ export default class ChatInterface {
 	private readonly MAX_DEPTH = 2; // Maximum depth of document resolution
 	private editor: Editor;
 	private view: MarkdownView;
-	private stopStreaming = false;
+	public stopStreaming = false;
 
 	public settings: CerebroSettings;
 	public editorPosition: EditorPosition;
