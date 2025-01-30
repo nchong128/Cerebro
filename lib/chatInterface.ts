@@ -16,10 +16,7 @@ import { assistantHeader, CSSAssets, userHeader, YAML_FRONTMATTER_REGEX } from '
 import { getCerebroBaseSystemPrompts } from './helpers';
 import { CerebroSettings, DEFAULT_SETTINGS } from './settings';
 import { isValidFileExtension, isValidImageExtension, isValidPDFExtension } from './helpers';
-
-const logger = pino({
-	level: 'info',
-});
+import { logger } from './logger';
 export type ShouldContinue = boolean;
 
 const removeYMLFromMessage = (message: string): string => {
@@ -63,26 +60,31 @@ const escapeRegExp = (text: string): string => {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
-const extractRoleAndMessage = (
-	message: string,
-	assistantHeader: string,
-	userHeader: string,
-): Message => {
+const extractRoleAndMessage = (message: string, settings: CerebroSettings): Message => {
 	try {
-		if (!message.includes(CSSAssets.HEADER)) return { role: 'user', content: message };
-		const userAssistantRegex = new RegExp(
-			`(?:${escapeRegExp(assistantHeader)}|${escapeRegExp(userHeader)})\\s*([\\s\\S]*)`,
-		);
-		const match = message.match(userAssistantRegex);
-
-		if (!match) throw new Error('No matching header found');
-
-		const role = message.includes(assistantHeader) ? 'assistant' : 'user';
-		const content = match[1].trim();
-		if (role === 'assistant' || role === 'user') {
-			return { role, content };
+		if (!message.includes(CSSAssets.HEADER)) {
+			return { role: 'user', content: message.trim() };
 		}
-		throw new Error('Unknown role ' + role);
+
+		// Extract name from header
+		const headerRegex = new RegExp(`<h[1-6] class="${CSSAssets.HEADER}">(.*?):</h[1-6]>`);
+		const headerMatch = message.match(headerRegex);
+
+		if (!headerMatch) {
+			throw new Error('Malformed header in message');
+		}
+
+		const name = headerMatch[1];
+		const role = name === settings.assistantName ? 'assistant' : 'user';
+
+		// Extract content after the header
+		const contentStartIdx = headerMatch.index! + headerMatch[0].length;
+		const content = message.slice(contentStartIdx).trim();
+
+		if (!content) {
+			throw new Error('Empty message content');
+		}
+		return { role, content };
 	} catch (err) {
 		throw new Error('Error extracting role and message' + err);
 	}
@@ -112,13 +114,7 @@ export default class ChatInterface {
 		const bodyWithoutYML = removeYMLFromMessage(rawEditorVal);
 		const messages = splitMessages(bodyWithoutYML)
 			.map((message) => removeCommentsFromMessages(message))
-			.map((message) =>
-				extractRoleAndMessage(
-					message,
-					assistantHeader(this.settings.assistantName, this.settings.headingLevel),
-					userHeader(this.settings.username, this.settings.headingLevel),
-				),
-			);
+			.map((message) => extractRoleAndMessage(message, this.settings));
 
 		const processedFiles = new Set<string>();
 		const messagesWithFiles = await Promise.all(
