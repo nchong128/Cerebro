@@ -118,14 +118,14 @@ export class InlineAssistSuggestModal extends SuggestModal<Action> {
 		};
 
 		// Position controls near the cursor
-		const coords = this.editor.coordsAtPos(this.editor.posToOffset(cursor));
-		if (coords) {
-			controlsEl.style.position = 'absolute';
-			controlsEl.style.left = `${coords.left}px`;
-			controlsEl.style.top = `${coords.top + 20}px`; // 20px below cursor
-		}
+		// const coords = this.editor.coordsAtPos(this.editor.posToOffset(cursor));
+		// if (coords) {
+		// 	controlsEl.style.position = 'absolute';
+		// 	controlsEl.style.left = `${coords.left}px`;
+		// 	controlsEl.style.top = `${coords.top + 20}px`; // 20px below cursor
+		// }
 
-		document.body.appendChild(controlsEl);
+		// document.body.appendChild(controlsEl);
 	}
 
 	private showDiffModal(originalText: string, options: string[]) {
