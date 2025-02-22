@@ -1,0 +1,31 @@
+{
+    "root": true,
+    "parser": "@typescript-eslint/parser",
+    "env": { "node": true },
+    "plugins": [
+      "@typescript-eslint"
+    ],
+    "extends": [
+		// Uses the recommended rules from the @typescript-eslint/eslint-plugin
+		"plugin:@typescript-eslint/recommended",
+		"prettier"
+    ], 
+    "parserOptions": {
+        "sourceType": "module"
+    },
+    "rules": {
+		"@typescript-eslint/no-explicit-any": "off",
+		"@typescript-eslint/no-non-null-assertion": "off",
+		"@typescript-eslint/no-unused-vars": "off",
+		"max-len": [
+			"error",
+			{
+				"code": 100,
+				"ignoreComments": true,
+				"ignoreStrings": true,
+				"ignoreTemplateLiterals": true,
+			}
+		],
+		"quote-props": ["error", "consistent-as-needed"]
+	}
+  }
